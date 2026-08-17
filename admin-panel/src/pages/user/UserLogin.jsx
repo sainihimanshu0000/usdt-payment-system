@@ -29,8 +29,10 @@ const UserLogin = () => {
       <div className="portal-login">
         <form className="portal-card" onSubmit={handleSubmit}>
           <p className="portal-kicker">USDT WALLET</p>
-          <h2 style={{ margin: '0 0 8px' }}>Sign in</h2>
-          <p style={{ color: 'var(--p-muted)', marginTop: 0 }}>Deposit USDT and manage bank accounts</p>
+          <h2 style={{ margin: '0 0 8px' }}>Sign in to your account</h2>
+          <p style={{ color: 'var(--p-muted)', marginTop: 0 }}>
+            Deposit USDT and manage bank accounts from the web portal
+          </p>
           <label className="portal-label">Email Address</label>
           <input
             className="portal-input"
@@ -49,7 +51,7 @@ const UserLogin = () => {
             required
           />
           <div className="portal-error" />
-          <button type="submit" className="portal-btn" disabled={loading}>
+          <button type="submit" className="portal-btn block" disabled={loading}>
             {loading ? 'Loading…' : 'Sign In'}
           </button>
           <div style={{ marginTop: 16, textAlign: 'center', fontSize: 13 }}>

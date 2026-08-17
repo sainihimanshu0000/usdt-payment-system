@@ -68,46 +68,58 @@ const BankAccounts = () => {
 
   return (
     <div>
-      <button type="button" className="portal-btn" style={{ marginBottom: 16 }} onClick={() => navigate('/portal/banks/add')}>
-        Add Bank Account
-      </button>
+      <div className="portal-page-head">
+        <div>
+          <h1>Bank Accounts</h1>
+          <p>Manage accounts used for UPI and payments</p>
+        </div>
+        <button type="button" className="portal-btn" onClick={() => navigate('/portal/banks/add')}>
+          Add Bank Account
+        </button>
+      </div>
+
       {accounts.length === 0 ? (
         <div className="portal-card portal-empty">
           <h3>No bank accounts yet</h3>
           <p>Add an account to use it for UPI payments.</p>
+          <button type="button" className="portal-btn" style={{ marginTop: 12 }} onClick={() => navigate('/portal/banks/add')}>
+            Add Bank Account
+          </button>
         </div>
       ) : (
-        accounts.map((account) => (
-          <article className="portal-card" key={account.id}>
-            <div className="bank-card-head">
-              <div>
-                <h3>{account.accountHolderName}</h3>
-                <p>{account.bankName}</p>
+        <div className="bank-list">
+          {accounts.map((account) => (
+            <article className="portal-card flat" key={account.id}>
+              <div className="bank-card-head">
+                <div>
+                  <h3>{account.accountHolderName}</h3>
+                  <p>{account.bankName}</p>
+                </div>
+                <span className={`portal-badge ${account.status}`}>{account.status}</span>
               </div>
-              <span className={`portal-badge ${account.status}`}>{account.status}</span>
-            </div>
-            <div className="portal-row"><span>Account No.</span><strong>{account.accountNoMasked}</strong></div>
-            <div className="portal-row"><span>UPI ID</span><strong>{account.upiId}</strong></div>
-            <div className="portal-row"><span>IFSC</span><strong>{account.ifscCode}</strong></div>
-            <div className="portal-row"><span>Branch</span><strong>{account.bankBranch}</strong></div>
-            <div className="portal-row"><span>Phone</span><strong>{account.countryCode} {account.phoneNo}</strong></div>
-            <div className="bank-actions">
-              <label className="switch" title="Toggle active status">
-                <input
-                  type="checkbox"
-                  checked={account.status === 'active'}
-                  disabled={busyId === account.id || account.status === 'rejected'}
-                  onChange={() => toggleStatus(account)}
-                />
-                <span />
-              </label>
-              <Link className="portal-btn ghost" to={`/portal/banks/${account.id}/edit`}>Edit</Link>
-              <button type="button" className="portal-btn danger" onClick={() => setPendingDelete(account)}>
-                Delete
-              </button>
-            </div>
-          </article>
-        ))
+              <div className="portal-row"><span>Account No.</span><strong>{account.accountNoMasked}</strong></div>
+              <div className="portal-row"><span>UPI ID</span><strong>{account.upiId}</strong></div>
+              <div className="portal-row"><span>IFSC</span><strong>{account.ifscCode}</strong></div>
+              <div className="portal-row"><span>Branch</span><strong>{account.bankBranch}</strong></div>
+              <div className="portal-row"><span>Phone</span><strong>{account.countryCode} {account.phoneNo}</strong></div>
+              <div className="bank-actions">
+                <label className="switch" title="Toggle active status">
+                  <input
+                    type="checkbox"
+                    checked={account.status === 'active'}
+                    disabled={busyId === account.id || account.status === 'rejected'}
+                    onChange={() => toggleStatus(account)}
+                  />
+                  <span />
+                </label>
+                <Link className="portal-btn ghost sm" to={`/portal/banks/${account.id}/edit`}>Edit</Link>
+                <button type="button" className="portal-btn danger sm" onClick={() => setPendingDelete(account)}>
+                  Delete
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
       )}
 
       {pendingDelete && (

@@ -80,93 +80,103 @@ const Deposit = () => {
 
   return (
     <div>
-      <div className="portal-card">
-        <p className="portal-kicker">UPI</p>
-        {activeBanks.length === 0 ? (
-          <div>
-            <p style={{ color: 'var(--p-muted)', marginTop: 0 }}>
-              Activate a bank account to use it for UPI payments.
-            </p>
-            <Link className="portal-btn" to="/portal/banks">Add / Activate Bank</Link>
-          </div>
-        ) : (
-          activeBanks.map((bank) => (
-            <div
-              key={bank.id}
-              className={`upi-option ${bankAccountId === bank.id ? 'is-selected' : ''}`}
-              onClick={() => setBankAccountId(bank.id)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') setBankAccountId(bank.id);
-              }}
-              role="button"
-              tabIndex={0}
-            >
-              <div style={{ flex: 1 }}>
-                <strong>{bank.upiId}</strong>
-                <div style={{ color: 'var(--p-muted)', fontSize: 13 }}>
-                  {bank.bankName} · {bank.accountNoMasked}
-                </div>
-              </div>
-              <button
-                type="button"
-                className="portal-btn ghost"
-                style={{ width: 'auto', padding: '6px 10px', fontSize: 12 }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  copyUpi(bank.upiId);
-                }}
-              >
-                Copy
-              </button>
-            </div>
-          ))
-        )}
-      </div>
-
-      <div className="portal-card">
-        <p className="portal-kicker">SEND USDT</p>
-        <p style={{ color: 'var(--p-muted)', marginTop: 0 }}>
-          Transfer USDT on {settings.network} to the wallet below, then submit your transaction hash.
-        </p>
-        <label className="portal-label">Receiving Wallet</label>
-        <input className="portal-input" value={settings.walletAddress || ''} readOnly />
-        <button type="button" className="portal-btn ghost" style={{ margin: '10px 0 12px' }} onClick={copyWallet}>
-          Copy address
-        </button>
-        <div style={{ color: 'var(--p-muted)', fontSize: 13 }}>
-          Min {settings.minAmount} USDT · Max {settings.maxAmount} USDT
+      <div className="portal-page-head">
+        <div>
+          <h1>Deposit</h1>
+          <p>Send USDT and submit your transaction for approval</p>
         </div>
-        {settings.qrImage && (
-          <img src={settings.qrImage} alt="Wallet QR" style={{ maxWidth: 180, marginTop: 14, borderRadius: 12 }} />
-        )}
       </div>
 
-      <form className="portal-card" onSubmit={handleSubmit}>
-        <p className="portal-kicker">SUBMIT TRANSACTION</p>
-        <label className="portal-label">Amount (USDT)</label>
-        <input
-          className="portal-input"
-          type="number"
-          min={settings.minAmount}
-          max={settings.maxAmount}
-          step="0.01"
-          value={amountUSDT}
-          onChange={(e) => setAmountUSDT(e.target.value)}
-          required
-        />
-        <div className="portal-error" />
-        <label className="portal-label">Transaction Hash</label>
-        <input
-          className="portal-input"
-          value={txHash}
-          onChange={(e) => setTxHash(e.target.value)}
-          required
-        />
-        <div className="portal-error" />
-        <button type="submit" className="portal-btn" disabled={submitting}>
-          {submitting ? 'Submitting…' : 'Submit Payment'}
-        </button>
-      </form>
+      <div className="portal-grid-2">
+        <div>
+          <div className="portal-card">
+            <p className="portal-kicker">SEND USDT</p>
+            <p style={{ color: 'var(--p-muted)', marginTop: 0 }}>
+              Transfer USDT on {settings.network} to the wallet below, then submit your transaction hash.
+            </p>
+            <label className="portal-label">Receiving Wallet</label>
+            <input className="portal-input" value={settings.walletAddress || ''} readOnly />
+            <button type="button" className="portal-btn ghost sm" style={{ margin: '10px 0 12px' }} onClick={copyWallet}>
+              Copy address
+            </button>
+            <div style={{ color: 'var(--p-muted)', fontSize: 13 }}>
+              Min {settings.minAmount} USDT · Max {settings.maxAmount} USDT
+            </div>
+            {settings.qrImage && (
+              <img src={settings.qrImage} alt="Wallet QR" style={{ maxWidth: 180, marginTop: 14, borderRadius: 12 }} />
+            )}
+          </div>
+
+          <div className="portal-card">
+            <p className="portal-kicker">UPI ACCOUNTS</p>
+            {activeBanks.length === 0 ? (
+              <div>
+                <p style={{ color: 'var(--p-muted)', marginTop: 0 }}>
+                  Activate a bank account to use it for UPI payments.
+                </p>
+                <Link className="portal-btn sm" to="/portal/banks">Manage Banks</Link>
+              </div>
+            ) : (
+              activeBanks.map((bank) => (
+                <div
+                  key={bank.id}
+                  className={`upi-option ${bankAccountId === bank.id ? 'is-selected' : ''}`}
+                  onClick={() => setBankAccountId(bank.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') setBankAccountId(bank.id);
+                  }}
+                  role="button"
+                  tabIndex={0}
+                >
+                  <div style={{ flex: 1 }}>
+                    <strong>{bank.upiId}</strong>
+                    <div style={{ color: 'var(--p-muted)', fontSize: 13 }}>
+                      {bank.bankName} · {bank.accountNoMasked}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="portal-btn ghost sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      copyUpi(bank.upiId);
+                    }}
+                  >
+                    Copy
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        <form className="portal-card flat" onSubmit={handleSubmit}>
+          <p className="portal-kicker">SUBMIT TRANSACTION</p>
+          <label className="portal-label">Amount (USDT)</label>
+          <input
+            className="portal-input"
+            type="number"
+            min={settings.minAmount}
+            max={settings.maxAmount}
+            step="0.01"
+            value={amountUSDT}
+            onChange={(e) => setAmountUSDT(e.target.value)}
+            required
+          />
+          <div className="portal-error" />
+          <label className="portal-label">Transaction Hash</label>
+          <input
+            className="portal-input"
+            value={txHash}
+            onChange={(e) => setTxHash(e.target.value)}
+            required
+          />
+          <div className="portal-error" />
+          <button type="submit" className="portal-btn block" disabled={submitting}>
+            {submitting ? 'Submitting…' : 'Submit Payment'}
+          </button>
+        </form>
+      </div>
     </div>
   );
 };
