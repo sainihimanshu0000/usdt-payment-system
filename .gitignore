@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.env
+.env.local
+.DS_Store
+admin-panel/node_modules/
+admin-panel/dist/
+admin-panel/.env
+backend/node_modules/
+backend/.env
+*.log
+.vite/
