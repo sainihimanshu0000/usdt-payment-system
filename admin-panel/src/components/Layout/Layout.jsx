@@ -45,6 +45,20 @@ const Layout = () => {
       )
     },
     {
+      path: '/bank-accounts',
+      label: 'Banks',
+      icon: (
+        <Icon>
+          <path d="M3 21h18" />
+          <path d="M3 10h18" />
+          <path d="M5 6l7-3 7 3" />
+          <path d="M6 10v11" />
+          <path d="M12 10v11" />
+          <path d="M18 10v11" />
+        </Icon>
+      )
+    },
+    {
       path: '/payments',
       label: 'Payments',
       icon: (

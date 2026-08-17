@@ -363,6 +363,16 @@ a {
   flex-wrap: wrap;
 }
 
+.btn-row a.btn-soft {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+.user-cell .ms-auto {
+  margin-left: auto;
+}
+
 .btn-soft {
   border: 1px solid var(--line);
   background: #fff;

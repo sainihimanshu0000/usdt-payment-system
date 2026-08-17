@@ -41,8 +41,12 @@ Default admin credentials come from `backend/.env` (`ADMIN_EMAIL` / `ADMIN_PASSW
 
 1. Set the receiving wallet in **Settings**
 2. Create a user in **Users**
-3. User submits a tx hash from the portal **Deposit** page
-4. Admin approves or rejects the payment
+3. User adds a bank account in the portal (**Banks**), then activates it
+4. Active bank accounts appear on **Deposit** for UPI
+5. User submits a tx hash from the portal **Deposit** page
+6. Admin approves or rejects the payment
+
+User portal bank screens: `/portal/banks` and `/portal/banks/add`
 
 ## Deploy on Vercel
 

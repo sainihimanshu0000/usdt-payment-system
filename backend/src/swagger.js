@@ -49,7 +49,8 @@ const swaggerSpec = {
     { name: 'Auth', description: 'Login and token verification' },
     { name: 'Users', description: 'User accounts' },
     { name: 'Payments', description: 'USDT deposits, settings, and approvals' },
-    { name: 'Admins', description: 'Admin accounts' }
+    { name: 'Admins', description: 'Admin accounts' },
+    { name: 'Bank Accounts', description: 'User bank accounts for UPI and payouts' }
   ],
   components: {
     securitySchemes: {
@@ -190,6 +191,67 @@ const swaggerSpec = {
         type: 'object',
         properties: {
           message: { type: 'string', example: 'User created successfully' }
+        }
+      },
+      BankAccount: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', example: '64f1a2b3c4d5e6f7a8b9c0d1' },
+          userId: { type: 'string' },
+          accountNoMasked: { type: 'string', example: 'XXXXXXXX1234' },
+          accountNo: { type: 'string', example: '12345678901234', description: 'Full number only on GET /:id and edit responses' },
+          upiId: { type: 'string', example: 'example@ybl' },
+          accountHolderName: { type: 'string', example: 'User Name' },
+          ifscCode: { type: 'string', example: 'SBIN0001234' },
+          bankName: { type: 'string', example: 'State Bank of India' },
+          bankBranch: { type: 'string', example: 'Jaipur' },
+          bankAddress: { type: 'string', example: 'Branch full address' },
+          countryCode: { type: 'string', example: '+91' },
+          phoneNo: { type: 'string', example: '9876543210' },
+          status: { type: 'string', enum: ['pending', 'active', 'inactive', 'rejected'] },
+          isActive: { type: 'boolean', example: false },
+          createdAt: { type: 'string', format: 'date-time' },
+          updatedAt: { type: 'string', format: 'date-time' }
+        }
+      },
+      CreateBankAccountRequest: {
+        type: 'object',
+        required: ['accountNo', 'upiId', 'accountHolderName', 'ifscCode', 'bankName', 'bankBranch', 'bankAddress', 'phoneNo'],
+        properties: {
+          accountNo: { type: 'string', example: '1234567890' },
+          upiId: { type: 'string', example: 'example@ybl' },
+          accountHolderName: { type: 'string', example: 'User Name' },
+          ifscCode: { type: 'string', example: 'SBIN0001234' },
+          bankName: { type: 'string', example: 'State Bank of India' },
+          bankBranch: { type: 'string', example: 'Jaipur' },
+          bankAddress: { type: 'string', example: 'Branch full address' },
+          countryCode: { type: 'string', example: '+91', default: '+91' },
+          phoneNo: { type: 'string', example: '9876543210' }
+        }
+      },
+      BankAccountStatusRequest: {
+        type: 'object',
+        required: ['status'],
+        properties: {
+          status: { type: 'string', enum: ['active', 'inactive'], example: 'active' }
+        }
+      },
+      BankAccountResponse: {
+        type: 'object',
+        properties: {
+          message: { type: 'string' },
+          bankAccount: { $ref: '#/components/schemas/BankAccount' }
+        }
+      },
+      FieldErrors: {
+        type: 'object',
+        properties: {
+          error: { type: 'string', example: 'Validation failed' },
+          errors: {
+            type: 'object',
+            additionalProperties: { type: 'string' },
+            example: { accountNo: 'Account No. is required' }
+          }
         }
       },
       PaymentSetting: {
@@ -744,6 +806,197 @@ const swaggerSpec = {
         responses: {
           201: { description: 'Created' },
           400: errorResponse('Admin already exists')
+        }
+      }
+    },
+    '/api/bank-accounts/admin': {
+      get: {
+        tags: ['Bank Accounts'],
+        operationId: 'adminListBankAccounts',
+        summary: 'Admin: list all bank accounts grouped by user',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { $ref: '#/components/parameters/Authorization' },
+          {
+            name: 'userId',
+            in: 'query',
+            schema: { type: 'string' },
+            description: 'Filter by user ObjectId'
+          },
+          {
+            name: 'status',
+            in: 'query',
+            schema: { type: 'string', enum: ['pending', 'active', 'inactive', 'rejected'] }
+          }
+        ],
+        responses: {
+          200: { description: 'Grouped bank accounts' },
+          401: errorResponse('Unauthorized')
+        }
+      }
+    },
+    '/api/bank-accounts/admin/{id}/status': {
+      patch: {
+        tags: ['Bank Accounts'],
+        operationId: 'adminUpdateBankAccountStatus',
+        summary: 'Admin: update bank account status',
+        security: [{ bearerAuth: [] }],
+        parameters: idAndAuth,
+        requestBody: jsonBody(
+          {
+            type: 'object',
+            required: ['status'],
+            properties: {
+              status: { type: 'string', enum: ['pending', 'active', 'inactive', 'rejected'] }
+            }
+          },
+          { status: 'active' }
+        ),
+        responses: {
+          200: { description: 'Updated' },
+          404: errorResponse('Bank account not found')
+        }
+      }
+    },
+    '/api/bank-accounts': {
+      get: {
+        tags: ['Bank Accounts'],
+        operationId: 'listBankAccounts',
+        summary: 'List own bank accounts',
+        description: 'Account numbers are masked. Use `status=active` to list accounts available for UPI/payments.',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { $ref: '#/components/parameters/Authorization' },
+          {
+            name: 'status',
+            in: 'query',
+            schema: { type: 'string', enum: ['pending', 'active', 'inactive', 'rejected'] }
+          },
+          {
+            name: 'active',
+            in: 'query',
+            schema: { type: 'string', enum: ['true'] }
+          }
+        ],
+        responses: {
+          200: {
+            description: 'Bank accounts',
+            content: jsonContent({ type: 'array', items: { $ref: '#/components/schemas/BankAccount' } })
+          },
+          401: errorResponse('Unauthorized')
+        }
+      },
+      post: {
+        tags: ['Bank Accounts'],
+        operationId: 'addBankAccount',
+        summary: 'Add bank account',
+        description: 'Creates a bank account with pending/inactive status.',
+        security: [{ bearerAuth: [] }],
+        parameters: authHeader,
+        requestBody: jsonBody(
+          { $ref: '#/components/schemas/CreateBankAccountRequest' },
+          {
+            accountNo: '1234567890',
+            upiId: 'example@ybl',
+            accountHolderName: 'User Name',
+            ifscCode: 'SBIN0001234',
+            bankName: 'State Bank of India',
+            bankBranch: 'Jaipur',
+            bankAddress: 'Branch full address',
+            countryCode: '+91',
+            phoneNo: '9876543210'
+          },
+          true,
+          'Bank account details'
+        ),
+        responses: {
+          201: { description: 'Created', content: jsonContent({ $ref: '#/components/schemas/BankAccountResponse' }) },
+          400: { description: 'Validation failed', content: jsonContent({ $ref: '#/components/schemas/FieldErrors' }) },
+          409: errorResponse('Duplicate bank account')
+        }
+      }
+    },
+    '/api/bank-accounts/active': {
+      get: {
+        tags: ['Bank Accounts'],
+        operationId: 'listActiveBankAccounts',
+        summary: 'List active bank accounts for UPI/payments',
+        security: [{ bearerAuth: [] }],
+        parameters: authHeader,
+        responses: {
+          200: {
+            description: 'Active accounts',
+            content: jsonContent({ type: 'array', items: { $ref: '#/components/schemas/BankAccount' } })
+          }
+        }
+      }
+    },
+    '/api/bank-accounts/{id}': {
+      get: {
+        tags: ['Bank Accounts'],
+        operationId: 'getBankAccount',
+        summary: 'Get bank account (full account number for edit)',
+        security: [{ bearerAuth: [] }],
+        parameters: idAndAuth,
+        responses: {
+          200: { description: 'Bank account', content: jsonContent({ $ref: '#/components/schemas/BankAccount' }) },
+          404: errorResponse('Bank account not found')
+        }
+      },
+      put: {
+        tags: ['Bank Accounts'],
+        operationId: 'updateBankAccount',
+        summary: 'Update bank account details',
+        security: [{ bearerAuth: [] }],
+        parameters: idAndAuth,
+        requestBody: jsonBody(
+          { $ref: '#/components/schemas/CreateBankAccountRequest' },
+          {
+            accountNo: '1234567890',
+            upiId: 'example@ybl',
+            accountHolderName: 'User Name',
+            ifscCode: 'SBIN0001234',
+            bankName: 'State Bank of India',
+            bankBranch: 'Jaipur',
+            bankAddress: 'Branch full address',
+            countryCode: '+91',
+            phoneNo: '9876543210'
+          }
+        ),
+        responses: {
+          200: { description: 'Updated', content: jsonContent({ $ref: '#/components/schemas/BankAccountResponse' }) },
+          400: { description: 'Validation failed', content: jsonContent({ $ref: '#/components/schemas/FieldErrors' }) },
+          404: errorResponse('Bank account not found')
+        }
+      },
+      delete: {
+        tags: ['Bank Accounts'],
+        operationId: 'deleteBankAccount',
+        summary: 'Delete bank account',
+        security: [{ bearerAuth: [] }],
+        parameters: idAndAuth,
+        responses: {
+          200: { description: 'Deleted', content: jsonContent({ $ref: '#/components/schemas/MessageResponse' }, { message: 'Bank account deleted successfully' }) },
+          404: errorResponse('Bank account not found')
+        }
+      }
+    },
+    '/api/bank-accounts/{id}/status': {
+      patch: {
+        tags: ['Bank Accounts'],
+        operationId: 'updateBankAccountStatus',
+        summary: 'Activate or deactivate a bank account',
+        description: 'Writes an audit log on every status change. Only active accounts can be used for UPI/payments.',
+        security: [{ bearerAuth: [] }],
+        parameters: idAndAuth,
+        requestBody: jsonBody(
+          { $ref: '#/components/schemas/BankAccountStatusRequest' },
+          { status: 'active' }
+        ),
+        responses: {
+          200: { description: 'Updated', content: jsonContent({ $ref: '#/components/schemas/BankAccountResponse' }) },
+          400: errorResponse('Status must be active or inactive'),
+          404: errorResponse('Bank account not found')
         }
       }
     },

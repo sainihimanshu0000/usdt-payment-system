@@ -41,7 +41,11 @@ const PaymentRequestSchema = new mongoose.Schema({
     verifiedAt: Date
   },
   adminNote: String,
-  reviewedAt: Date
+  reviewedAt: Date,
+  bankAccountId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'BankAccount'
+  }
 }, {
   timestamps: true
 });

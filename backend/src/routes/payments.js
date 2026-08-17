@@ -1,6 +1,7 @@
 const express = require('express');
 const PaymentRequest = require('../models/PaymentRequest');
 const PaymentSetting = require('../models/PaymentSetting');
+const BankAccount = require('../models/BankAccount');
 const User = require('../models/User');
 const { verifyAdmin, verifyUser } = require('../middleware/auth');
 const blockchainService = require('../services/blockchain');
@@ -64,7 +65,7 @@ router.post('/settings', verifyAdmin, async (req, res) => {
 // Submit Payment (User only)
 router.post('/', verifyUser, async (req, res) => {
   try {
-    const { amountUSDT, txHash, network } = req.body;
+    const { amountUSDT, txHash, network, bankAccountId } = req.body;
 
     if (!amountUSDT || !txHash) {
       return res.status(400).json({ error: 'Amount and Transaction Hash are required' });
@@ -94,13 +95,27 @@ router.post('/', verifyUser, async (req, res) => {
       return res.status(400).json({ error: 'Transaction hash already submitted' });
     }
 
+    let selectedBank = null;
+    if (bankAccountId) {
+      selectedBank = await BankAccount.findOne({
+        _id: bankAccountId,
+        userId: req.user._id,
+        status: 'active',
+        isActive: true
+      });
+      if (!selectedBank) {
+        return res.status(400).json({ error: 'Select an active bank account for UPI payments' });
+      }
+    }
+
     // Create payment request
     const payment = new PaymentRequest({
       userId: req.user._id,
       amountUSDT,
       txHash,
       network: network || settings.network,
-      status: 'pending'
+      status: 'pending',
+      bankAccountId: selectedBank?._id
     });
 
     await payment.save();

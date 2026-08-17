@@ -122,12 +122,14 @@ const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const paymentRoutes = require('./routes/payments');
 const adminRoutes = require('./routes/admins');
+const bankAccountRoutes = require('./routes/bankAccounts');
 
 // Use Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/admins', adminRoutes);
+app.use('/api/bank-accounts', bankAccountRoutes);
 app.use(
   '/api/docs',
   ...swaggerUi.serve,

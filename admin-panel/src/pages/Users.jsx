@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import api from '../services/api';
 
@@ -150,6 +151,7 @@ const Users = () => {
                     </td>
                     <td>
                       <div className="btn-row">
+                        <Link className="btn-soft" to={`/bank-accounts?userId=${user._id}`}>Banks</Link>
                         <button className="btn-soft" onClick={() => openEdit(user)}>Edit</button>
                         <button
                           className={`btn-soft ${user.status === 'active' ? 'warn' : 'success'}`}
