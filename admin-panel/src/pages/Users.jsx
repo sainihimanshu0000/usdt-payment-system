@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import api from '../services/api';
 
-const emptyForm = { name: '', email: '', password: '' };
+const emptyForm = { name: '', email: '', phone: '', password: '' };
 
 const Users = () => {
   const [users, setUsers] = useState([]);
@@ -37,7 +37,7 @@ const Users = () => {
 
   const openEdit = (user) => {
     setEditingUser(user);
-    setForm({ name: user.name || '', email: user.email || '', password: '' });
+    setForm({ name: user.name || '', email: user.email || '', phone: user.phone || '', password: '' });
     setShowModal(true);
   };
 
@@ -46,7 +46,7 @@ const Users = () => {
     setSaving(true);
     try {
       if (editingUser) {
-        const payload = { name: form.name, email: form.email };
+        const payload = { name: form.name, email: form.email, phone: form.phone };
         if (form.password) payload.password = form.password;
         await api.patch(`/users/${editingUser._id}`, payload);
         toast.success('User updated');
@@ -190,6 +190,10 @@ const Users = () => {
                 <div className="mb-3">
                   <label className="form-label">Email</label>
                   <input type="email" className="form-control" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Mobile Number</label>
+                  <input className="form-control" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
                 </div>
                 <div className="mb-0">
                   <label className="form-label">Password {editingUser ? '(leave blank to keep current)' : ''}</label>

@@ -50,7 +50,8 @@ const swaggerSpec = {
     { name: 'Users', description: 'User accounts' },
     { name: 'Payments', description: 'USDT deposits, settings, and approvals' },
     { name: 'Admins', description: 'Admin accounts' },
-    { name: 'Bank Accounts', description: 'User bank accounts for UPI and payouts' }
+    { name: 'Bank Accounts', description: 'User bank accounts for UPI and payouts' },
+    { name: 'Transactions', description: 'Admin-created transactions pending user approval' }
   ],
   components: {
     securitySchemes: {
@@ -1027,6 +1028,121 @@ const swaggerSpec = {
         responses: {
           200: { description: 'Deleted', content: jsonContent({ $ref: '#/components/schemas/MessageResponse' }, { message: 'Admin deleted' }) },
           404: errorResponse('Admin not found')
+        }
+      }
+    },
+    '/api/admin/transactions': {
+      get: {
+        tags: ['Transactions'],
+        operationId: 'adminListTransactions',
+        summary: 'Admin: list all approval transactions',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { $ref: '#/components/parameters/Authorization' },
+          {
+            name: 'status',
+            in: 'query',
+            schema: {
+              type: 'string',
+              enum: ['pending_user_approval', 'approved_by_user', 'rejected_by_user', 'success', 'failed']
+            }
+          },
+          { name: 'userId', in: 'query', schema: { type: 'string' } },
+          { name: 'search', in: 'query', schema: { type: 'string' } }
+        ],
+        responses: {
+          200: { description: 'Transaction list' },
+          401: errorResponse('Unauthorized')
+        }
+      },
+      post: {
+        tags: ['Transactions'],
+        operationId: 'adminCreateTransaction',
+        summary: 'Admin: send a transaction to a user for approval',
+        security: [{ bearerAuth: [] }],
+        parameters: authHeader,
+        requestBody: jsonBody(
+          {
+            type: 'object',
+            required: ['userId', 'amount', 'utrNumber', 'paymentMode'],
+            properties: {
+              userId: { type: 'string' },
+              amount: { type: 'number', example: 1000 },
+              utrNumber: { type: 'string', example: '123456789012' },
+              paymentMode: { type: 'string', enum: ['upi', 'bank_transfer', 'neft', 'imps', 'rtgs', 'cash', 'other'] },
+              remark: { type: 'string', example: 'Payment received, please confirm' }
+            }
+          },
+          {
+            userId: '64f1a2b3c4d5e6f7a8b9c0d1',
+            amount: 1000,
+            utrNumber: '123456789012',
+            paymentMode: 'upi',
+            remark: 'Payment received, please confirm'
+          }
+        ),
+        responses: {
+          201: { description: 'Sent for approval' },
+          409: errorResponse('This UTR number is already used')
+        }
+      }
+    },
+    '/api/admin/transactions/{id}': {
+      get: {
+        tags: ['Transactions'],
+        operationId: 'adminGetTransaction',
+        summary: 'Admin: view transaction details',
+        security: [{ bearerAuth: [] }],
+        parameters: idAndAuth,
+        responses: {
+          200: { description: 'Transaction details' },
+          404: errorResponse('Transaction not found')
+        }
+      }
+    },
+    '/api/user/transactions/pending-approval': {
+      get: {
+        tags: ['Transactions'],
+        operationId: 'userPendingTransactions',
+        summary: 'User: pending approval transactions',
+        security: [{ bearerAuth: [] }],
+        parameters: authHeader,
+        responses: {
+          200: { description: 'Pending transactions' }
+        }
+      }
+    },
+    '/api/user/transactions/{id}/approve': {
+      patch: {
+        tags: ['Transactions'],
+        operationId: 'userApproveTransaction',
+        summary: 'User: approve transaction and credit wallet',
+        security: [{ bearerAuth: [] }],
+        parameters: idAndAuth,
+        responses: {
+          200: { description: 'Approved' },
+          409: errorResponse('Duplicate approval is not allowed')
+        }
+      }
+    },
+    '/api/user/transactions/{id}/reject': {
+      patch: {
+        tags: ['Transactions'],
+        operationId: 'userRejectTransaction',
+        summary: 'User: reject transaction',
+        security: [{ bearerAuth: [] }],
+        parameters: idAndAuth,
+        requestBody: jsonBody(
+          {
+            type: 'object',
+            required: ['reason'],
+            properties: { reason: { type: 'string', example: 'Amount not received' } }
+          },
+          { reason: 'Amount not received' }
+        ),
+        responses: {
+          200: { description: 'Rejected' },
+          409: errorResponse('Duplicate rejection is not allowed')
         }
       }
     }

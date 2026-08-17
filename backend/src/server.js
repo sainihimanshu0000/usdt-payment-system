@@ -72,12 +72,18 @@ const createDefaultAdmin = async () => {
       const admin = new Admin({
         email: process.env.ADMIN_EMAIL,
         passwordHash,
-        name: 'Super Admin'
+        name: 'Super Admin',
+        role: 'super_admin',
+        canApproveOnBehalf: true
       });
       await admin.save();
       console.log('✅ Default Admin Created');
       console.log(`📧 Email: ${process.env.ADMIN_EMAIL}`);
       console.log(`🔑 Password: ${process.env.ADMIN_PASSWORD}`);
+    } else if (adminExists.role !== 'super_admin') {
+      adminExists.role = 'super_admin';
+      adminExists.canApproveOnBehalf = true;
+      await adminExists.save();
     }
   } catch (error) {
     console.error('❌ Admin Creation Error:', error);
@@ -123,6 +129,8 @@ const userRoutes = require('./routes/users');
 const paymentRoutes = require('./routes/payments');
 const adminRoutes = require('./routes/admins');
 const bankAccountRoutes = require('./routes/bankAccounts');
+const transactionRoutes = require('./routes/transactions');
+const notificationRoutes = require('./routes/notifications');
 
 // Use Routes
 app.use('/api/auth', authRoutes);
@@ -130,6 +138,8 @@ app.use('/api/users', userRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/admins', adminRoutes);
 app.use('/api/bank-accounts', bankAccountRoutes);
+app.use('/api', transactionRoutes);
+app.use('/api/notifications', notificationRoutes);
 app.use(
   '/api/docs',
   ...swaggerUi.serve,

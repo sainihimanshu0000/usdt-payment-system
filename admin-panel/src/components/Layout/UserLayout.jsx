@@ -1,11 +1,27 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useUserAuth } from '../../context/UserAuthContext';
+import api from '../../services/api';
 import '../../portal.css';
 
 const UserLayout = () => {
   const { logout, user } = useUserAuth();
   const navigate = useNavigate();
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const { data } = await api.get('/user/transactions/pending-approval');
+        setPendingCount(Array.isArray(data) ? data.length : 0);
+      } catch (error) {
+        setPendingCount(0);
+      }
+    };
+    load();
+    const timer = setInterval(load, 20000);
+    return () => clearInterval(timer);
+  }, []);
 
   const handleLogout = async () => {
     await logout();
@@ -28,6 +44,9 @@ const UserLayout = () => {
               </NavLink>
               <NavLink to="/portal/deposit">Deposit</NavLink>
               <NavLink to="/portal/banks">Bank Accounts</NavLink>
+              <NavLink to="/portal/approvals">
+                Approvals{pendingCount > 0 ? ` (${pendingCount})` : ''}
+              </NavLink>
             </nav>
 
             <div className="portal-nav-user">

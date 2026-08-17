@@ -13,6 +13,7 @@ router.get('/me', verifyUser, async (req, res) => {
       id: user._id,
       name: user.name,
       email: user.email,
+      phone: user.phone || '',
       status: user.status,
       balance: user.balance,
       totalDeposited: user.totalDeposited
@@ -26,7 +27,7 @@ router.get('/me', verifyUser, async (req, res) => {
 // Create User (Admin only)
 router.post('/', verifyAdmin, async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, phone } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ error: 'All fields are required' });
@@ -44,6 +45,7 @@ router.post('/', verifyAdmin, async (req, res) => {
     const user = new User({
       name,
       email: email.toLowerCase(),
+      phone: String(phone || '').trim(),
       passwordHash
     });
 
@@ -93,13 +95,14 @@ router.get('/:id', verifyAdmin, async (req, res) => {
 // Update User (Admin only)
 router.patch('/:id', verifyAdmin, async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, phone } = req.body;
     const user = await User.findById(req.params.id);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
     if (name) user.name = name.trim();
+    if (phone !== undefined) user.phone = String(phone || '').trim();
     if (email) {
       const exists = await User.findOne({ email: email.toLowerCase(), _id: { $ne: user._id } });
       if (exists) {

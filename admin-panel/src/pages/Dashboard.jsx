@@ -75,6 +75,10 @@ const Dashboard = () => {
               <h6>Manage Users</h6>
               <small className="text-muted">Create accounts and control access</small>
             </Link>
+            <Link to="/transactions/add" className="quick-card">
+              <h6>Add Transaction</h6>
+              <small className="text-muted">Send amount and UTR for user approval</small>
+            </Link>
             <Link to="/payments" className="quick-card">
               <h6>Approve Payments</h6>
               <small className="text-muted">Review USDT deposit requests</small>

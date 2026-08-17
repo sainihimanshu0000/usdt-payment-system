@@ -39,7 +39,8 @@ router.post('/admin/login', async (req, res) => {
         id: admin._id,
         email: admin.email,
         name: admin.name,
-        role: 'admin'
+        role: admin.role || 'admin',
+        canApproveOnBehalf: !!admin.canApproveOnBehalf
       }
     });
   } catch (error) {
@@ -138,7 +139,8 @@ router.get('/verify', async (req, res) => {
           id: admin._id,
           email: admin.email,
           name: admin.name,
-          role: 'admin'
+          role: admin.role || 'admin',
+          canApproveOnBehalf: !!admin.canApproveOnBehalf
         }
       });
     }

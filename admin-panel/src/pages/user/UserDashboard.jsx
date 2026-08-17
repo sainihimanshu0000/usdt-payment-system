@@ -44,6 +44,7 @@ const UserDashboard = () => {
         </div>
         <div className="portal-actions" style={{ marginBottom: 0 }}>
           <Link to="/portal/deposit" className="portal-btn">Deposit USDT</Link>
+          <Link to="/portal/approvals" className="portal-btn ghost">Approvals</Link>
           <Link to="/portal/banks" className="portal-btn ghost">Manage Banks</Link>
         </div>
       </div>

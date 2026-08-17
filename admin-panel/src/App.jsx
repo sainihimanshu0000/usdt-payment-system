@@ -15,11 +15,14 @@ const Users = lazy(() => import('./pages/Users'));
 const Payments = lazy(() => import('./pages/Payments'));
 const Settings = lazy(() => import('./pages/Settings'));
 const AdminBankAccounts = lazy(() => import('./pages/AdminBankAccounts'));
+const AdminTransactions = lazy(() => import('./pages/AdminTransactions'));
+const AddTransaction = lazy(() => import('./pages/AddTransaction'));
 const UserLogin = lazy(() => import('./pages/user/UserLogin'));
 const UserDashboard = lazy(() => import('./pages/user/UserDashboard'));
 const Deposit = lazy(() => import('./pages/user/Deposit'));
 const BankAccounts = lazy(() => import('./pages/user/BankAccounts'));
 const AddBank = lazy(() => import('./pages/user/AddBank'));
+const UserTransactionApproval = lazy(() => import('./pages/user/UserTransactionApproval'));
 
 function App() {
   return (
@@ -44,6 +47,7 @@ function App() {
                   <Route path="banks" element={<BankAccounts />} />
                   <Route path="banks/add" element={<AddBank />} />
                   <Route path="banks/:id/edit" element={<AddBank />} />
+                  <Route path="approvals" element={<UserTransactionApproval />} />
                 </Route>
               </Route>
 
@@ -53,6 +57,8 @@ function App() {
                   <Route path="dashboard" element={<Dashboard />} />
                   <Route path="users" element={<Users />} />
                   <Route path="bank-accounts" element={<AdminBankAccounts />} />
+                  <Route path="transactions" element={<AdminTransactions />} />
+                  <Route path="transactions/add" element={<AddTransaction />} />
                   <Route path="payments" element={<Payments />} />
                   <Route path="settings" element={<Settings />} />
                 </Route>

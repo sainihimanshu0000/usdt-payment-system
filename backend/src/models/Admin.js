@@ -14,6 +14,15 @@ const AdminSchema = new mongoose.Schema({
   name: {
     type: String,
     default: 'Admin'
+  },
+  role: {
+    type: String,
+    enum: ['admin', 'super_admin'],
+    default: 'admin'
+  },
+  canApproveOnBehalf: {
+    type: Boolean,
+    default: false
   }
 }, {
   timestamps: true
