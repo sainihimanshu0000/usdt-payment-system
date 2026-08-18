@@ -67,8 +67,8 @@ const serialize = (doc) => {
     userEmail: user?.email || '',
     mobileNumber: user?.phone || txn.mobileNumber || '',
     amount: txn.amount,
-    inrAmount: txn.inrAmount,
-    currentUsdtRate: txn.currentUsdtRate,
+    inrAmount: txn.inrAmount != null ? txn.inrAmount : txn.amount,
+    currency: 'INR',
     utrNumber: txn.utrNumber,
     paymentMode: txn.paymentMode,
     status: txn.status,
@@ -105,23 +105,22 @@ const attachMobile = async (rows) => {
   }));
 };
 
-const payoutAmounts = async (usdtAmount) => {
+const payoutAmounts = async (inrAmount) => {
   const rate = await getCurrentRate();
   const rateInr = Number(rate?.rateInr || 0);
-  const amount = roundAmount(usdtAmount);
+  const amount = roundAmount(inrAmount);
   return {
-    usdtAmount: amount,
-    inrAmount: rateInr > 0 ? roundAmount(amount * rateInr) : amount,
+    inrAmount: amount,
+    usdtAmount: rateInr > 0 ? roundAmount(amount / rateInr) : 0,
     rateInr
   };
 };
 
 const withPayoutPreview = async (rows) => {
-  const { rateInr } = await payoutAmounts(1);
   return rows.map((row) => ({
     ...row,
-    currentUsdtRate: rateInr,
-    inrAmount: rateInr > 0 ? roundAmount(Number(row.amount) * rateInr) : roundAmount(row.amount)
+    currency: 'INR',
+    inrAmount: roundAmount(row.amount)
   }));
 };
 
@@ -253,7 +252,7 @@ router.post('/admin/transactions', verifyAdmin, async (req, res) => {
       recipientType: 'user',
       recipientId: user._id,
       title: 'New transaction approval request received.',
-      message: `A ${numericAmount} USDT payment (UTR ${utr}) is waiting for your approval. Approving will deduct it from your deposit balance.`,
+      message: `A ₹${numericAmount} payment (UTR ${utr}) is waiting for your approval. Approving will deduct it from your deposit balance.`,
       referenceId: txn._id
     });
 
@@ -389,7 +388,7 @@ router.patch('/admin/transactions/:id/approve', verifyAdmin, async (req, res) =>
       recipientType: 'user',
       recipientId: user._id,
       title: 'Transaction approved',
-      message: `Your ${claimed.amount} USDT payment was approved and deducted from your deposit balance.`,
+      message: `Your ₹${claimed.amount} payment was approved and deducted from your deposit balance.`,
       referenceId: claimed._id
     });
 
@@ -508,7 +507,7 @@ router.patch('/user/transactions/:id/approve', verifyUser, async (req, res) => {
       recipientType: 'admin',
       recipientId: claimed.createdByAdminId,
       title: 'User approved the transaction.',
-      message: `${user.name} approved ${claimed.amount} USDT (UTR ${claimed.utrNumber}). Deposit balance deducted.`,
+      message: `${user.name} approved ₹${claimed.amount} (UTR ${claimed.utrNumber}). Deposit balance deducted.`,
       referenceId: claimed._id
     });
 
@@ -584,7 +583,7 @@ router.patch('/user/transactions/:id/reject', verifyUser, async (req, res) => {
       recipientType: 'admin',
       recipientId: claimed.createdByAdminId,
       title: 'User rejected the transaction.',
-      message: `${req.user.name} rejected ${claimed.amount} USDT (UTR ${claimed.utrNumber}). Reason: ${reason}`,
+      message: `${req.user.name} rejected ₹${claimed.amount} (UTR ${claimed.utrNumber}). Reason: ${reason}`,
       referenceId: claimed._id
     });
 

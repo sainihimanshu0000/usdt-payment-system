@@ -80,7 +80,7 @@ const UserTransactionApproval = () => {
       <div className="portal-page-head">
         <div>
           <h1>Transaction Approval</h1>
-          <p>Review amounts sent by admin. Approving deducts the INR value from your deposit balance.</p>
+          <p>Review INR payments sent by admin. Approving deducts this amount from your deposit balance.</p>
         </div>
       </div>
 
@@ -95,14 +95,8 @@ const UserTransactionApproval = () => {
             <article className="portal-card flat" key={txn.id}>
               <div className="bank-card-head">
                 <div>
-                  <h3>{Number(txn.amount).toFixed(2)} USDT</h3>
+                  <h3>₹{Number(txn.amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
                   <p>UTR {txn.utrNumber}</p>
-                  {txn.inrAmount ? (
-                    <p style={{ margin: '6px 0 0', color: 'var(--p-muted)' }}>
-                      Deposit deduction: ₹{Number(txn.inrAmount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      {txn.currentUsdtRate ? ` · 1 USDT = ₹${txn.currentUsdtRate}` : ''}
-                    </p>
-                  ) : null}
                 </div>
                 <span className="portal-badge pending">{txn.statusLabel}</span>
               </div>
@@ -134,7 +128,7 @@ const UserTransactionApproval = () => {
               <tbody>
                 {history.map((txn) => (
                   <tr key={txn.id}>
-                    <td>{Number(txn.amount).toFixed(2)}</td>
+                    <td>₹{Number(txn.amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td>{txn.utrNumber}</td>
                     <td>
                       <span className={`portal-badge ${txn.status === 'success' || txn.status === 'approved_by_user' ? 'active' : txn.status === 'rejected_by_user' || txn.status === 'failed' ? 'inactive' : 'pending'}`}>
@@ -155,9 +149,7 @@ const UserTransactionApproval = () => {
           <div className="portal-card">
             <h3 style={{ marginTop: 0 }}>Approve this transaction?</h3>
             <p style={{ color: 'var(--p-muted)' }}>
-              Are you sure you want to approve this transaction? {Number(confirmTxn.amount).toFixed(2)} USDT
-              {confirmTxn.inrAmount ? ` (₹${Number(confirmTxn.inrAmount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})` : ''}
-              {' '}will be deducted from your deposit balance.
+              Are you sure you want to approve this transaction? ₹{Number(confirmTxn.amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} will be deducted from your deposit balance.
             </p>
             <div className="bank-actions">
               <button type="button" className="portal-btn ghost" onClick={() => setConfirmTxn(null)}>Cancel</button>

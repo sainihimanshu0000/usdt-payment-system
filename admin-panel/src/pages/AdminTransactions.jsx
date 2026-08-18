@@ -147,7 +147,7 @@ const AdminTransactions = () => {
                       <div className="text-muted small">{row.userEmail}</div>
                     </td>
                     <td>{row.mobileNumber || '—'}</td>
-                    <td>{Number(row.amount).toFixed(2)}</td>
+                    <td>₹{Number(row.amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td>{row.utrNumber}</td>
                     <td className="text-uppercase">{row.paymentMode?.replace('_', ' ')}</td>
                     <td>
@@ -196,7 +196,7 @@ const AdminTransactions = () => {
             <div className="body">
               <div className="summary-row"><span>User</span><strong>{detail.userName}</strong></div>
               <div className="summary-row"><span>Mobile</span><strong>{detail.mobileNumber || '—'}</strong></div>
-              <div className="summary-row"><span>Amount</span><strong>{Number(detail.amount).toFixed(2)}</strong></div>
+              <div className="summary-row"><span>Amount</span><strong>₹{Number(detail.amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
               <div className="summary-row"><span>UTR</span><strong>{detail.utrNumber}</strong></div>
               <div className="summary-row"><span>Mode</span><strong>{detail.paymentMode}</strong></div>
               <div className="summary-row"><span>Status</span><strong>{detail.statusLabel}</strong></div>
