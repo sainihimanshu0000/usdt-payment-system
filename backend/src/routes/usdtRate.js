@@ -134,25 +134,29 @@ router.post('/usdt-rate', verifyAdmin, async (req, res) => {
     });
 
     const { ip, device } = getRequestMeta(req);
-    await AdminAuditLog.create({
-      adminId: req.admin._id,
-      action: 'update_usdt_rate',
-      module: 'usdt_rate',
-      referenceId: history._id,
-      oldStatus: String(oldRate),
-      newStatus: String(rateInr),
-      metadata: {
-        oldRate,
-        newRate: rateInr,
-        oldBonusRatio,
-        newBonusRatio: bonusRatio,
-        minDeposit,
-        maxDeposit,
-        status
-      },
-      ip,
-      device
-    });
+    try {
+      await AdminAuditLog.create({
+        adminId: req.admin._id,
+        action: 'update_usdt_rate',
+        module: 'usdt_rate',
+        referenceId: history._id,
+        oldStatus: String(oldRate),
+        newStatus: String(rateInr),
+        metadata: {
+          oldRate,
+          newRate: rateInr,
+          oldBonusRatio,
+          newBonusRatio: bonusRatio,
+          minDeposit,
+          maxDeposit,
+          status
+        },
+        ip,
+        device
+      });
+    } catch (auditError) {
+      console.error('USDT rate audit log error:', auditError);
+    }
 
     const populated = await settings.populate('updatedByAdminId', 'name email');
     res.json({

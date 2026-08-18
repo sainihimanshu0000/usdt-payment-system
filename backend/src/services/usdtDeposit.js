@@ -21,7 +21,7 @@ const submitUsdtDeposit = async ({ user, amountUsdt, txHash, network, bankAccoun
     getActiveRate()
   ]);
 
-  if (!settings || !settings.active) {
+  if (!settings || settings.active === false) {
     const error = new Error('Payment system is currently inactive');
     error.status = 400;
     throw error;

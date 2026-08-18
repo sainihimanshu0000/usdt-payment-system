@@ -2,7 +2,7 @@ const express = require('express');
 const PaymentRequest = require('../models/PaymentRequest');
 const PaymentSetting = require('../models/PaymentSetting');
 const { verifyUser } = require('../middleware/auth');
-const { getActiveRate, serializeRate } = require('../services/usdtRate');
+const { getCurrentRate, serializeRate, isUsableRate } = require('../services/usdtRate');
 const { getWalletBalances } = require('../services/walletService');
 const { submitUsdtDeposit } = require('../services/usdtDeposit');
 
@@ -10,9 +10,15 @@ const router = express.Router();
 
 router.get('/dashboard', verifyUser, async (req, res) => {
   try {
-    const [balances, rate, bonusAgg] = await Promise.all([
-      getWalletBalances(req.user._id),
-      getActiveRate(),
+    let balances = { inrBalance: 0, usdtBalance: 0 };
+    try {
+      balances = await getWalletBalances(req.user._id);
+    } catch (walletError) {
+      console.error('Get wallet balances error:', walletError);
+    }
+
+    const [rate, bonusAgg] = await Promise.all([
+      getCurrentRate(),
       PaymentRequest.aggregate([
         { $match: { userId: req.user._id, status: 'approved' } },
         {
@@ -44,15 +50,17 @@ router.get('/deposit/usdt-info', verifyUser, async (req, res) => {
   try {
     const [paymentSettings, rate] = await Promise.all([
       PaymentSetting.findOne(),
-      getActiveRate()
+      getCurrentRate()
     ]);
     const serialized = serializeRate(rate);
+    const paymentsEnabled = !paymentSettings || paymentSettings.active !== false;
+    const rateEnabled = isUsableRate(rate);
 
     res.json({
       walletAddress: paymentSettings?.walletAddress || '',
       network: paymentSettings?.network || 'TRC20',
       qrImage: paymentSettings?.qrImage || '',
-      depositsEnabled: Boolean(paymentSettings?.active) && serialized.status === 'active' && serialized.rateInr > 0,
+      depositsEnabled: paymentsEnabled && rateEnabled,
       currentUsdtRate: serialized.rateInr || 0,
       bonusRatio: serialized.bonusRatio || 0,
       minDeposit: serialized.minDeposit != null ? serialized.minDeposit : (paymentSettings?.minAmount ?? 10),

@@ -1,6 +1,13 @@
 const UsdtRateSetting = require('../models/UsdtRateSetting');
 const { roundAmount } = require('./walletService');
 
+const normalizeStatus = (status) => String(status || 'active').trim().toLowerCase();
+
+const isUsableRate = (doc) => {
+  if (!doc || !(Number(doc.rateInr) > 0)) return false;
+  return normalizeStatus(doc.status) !== 'inactive';
+};
+
 const serializeRate = (doc) => {
   if (!doc) {
     return {
@@ -24,7 +31,7 @@ const serializeRate = (doc) => {
     bonusRatio: Number(doc.bonusRatio || 0),
     minDeposit: doc.minDeposit == null ? null : Number(doc.minDeposit),
     maxDeposit: doc.maxDeposit == null ? null : Number(doc.maxDeposit),
-    status: doc.status || 'inactive',
+    status: isUsableRate(doc) ? 'active' : 'inactive',
     updatedByAdminId: admin ? admin._id : doc.updatedByAdminId || null,
     updatedBy: admin ? (admin.name || admin.email || '') : '',
     updatedByEmail: admin?.email || '',
@@ -39,11 +46,15 @@ const getCurrentRate = async () => {
 };
 
 const getActiveRate = async () => {
-  const doc = await getCurrentRate();
-  if (!doc || doc.status !== 'active' || !(Number(doc.rateInr) > 0)) {
-    return null;
-  }
-  return doc;
+  const latest = await getCurrentRate();
+  if (isUsableRate(latest)) return latest;
+
+  const fallback = await UsdtRateSetting.findOne({ rateInr: { $gt: 0 } })
+    .sort({ updatedAt: -1 })
+    .populate('updatedByAdminId', 'name email');
+
+  if (isUsableRate(fallback)) return fallback;
+  return null;
 };
 
 const calculateDepositCredit = (amountUsdt, rate) => {
@@ -67,5 +78,6 @@ module.exports = {
   serializeRate,
   getCurrentRate,
   getActiveRate,
+  isUsableRate,
   calculateDepositCredit
 };

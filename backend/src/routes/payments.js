@@ -5,7 +5,7 @@ const User = require('../models/User');
 const { verifyAdmin, verifyUser } = require('../middleware/auth');
 const blockchainService = require('../services/blockchain');
 const { submitUsdtDeposit, creditApprovedDeposit } = require('../services/usdtDeposit');
-const { getActiveRate, serializeRate } = require('../services/usdtRate');
+const { getCurrentRate, serializeRate } = require('../services/usdtRate');
 
 const router = express.Router();
 
@@ -24,7 +24,7 @@ router.get('/settings', async (req, res) => {
       });
       await settings.save();
     }
-    const rate = await getActiveRate();
+    const rate = await getCurrentRate();
     const serializedRate = serializeRate(rate);
     res.json({
       ...settings.toObject(),

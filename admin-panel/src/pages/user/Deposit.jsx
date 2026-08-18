@@ -91,6 +91,8 @@ const Deposit = () => {
   }
 
   const activeBanks = banks.filter((bank) => bank.status === 'active' && bank.isActive);
+  const hasRate = Number(info.currentUsdtRate) > 0;
+  const depositsEnabled = info.depositsEnabled !== false && hasRate;
 
   return (
     <div>
@@ -102,13 +104,18 @@ const Deposit = () => {
       </div>
 
       <div className="portal-rate-banner">
-        Current rate: <strong>1 USDT = {info.currentUsdtRate ? formatInr(info.currentUsdtRate) : 'Not set'}</strong>
+        Current rate: <strong>1 USDT = {hasRate ? formatInr(info.currentUsdtRate) : 'Not set'}</strong>
         {Number(info.bonusRatio || 0) > 0 ? ` · Bonus ${info.bonusRatio}%` : ''}
       </div>
 
-      {!info.depositsEnabled && (
+      {!hasRate && (
         <div className="portal-card" style={{ marginBottom: 16 }}>
           USDT deposits are currently inactive. An admin must set an active USDT rate first.
+        </div>
+      )}
+      {hasRate && !depositsEnabled && (
+        <div className="portal-card" style={{ marginBottom: 16 }}>
+          Deposits are currently disabled.
         </div>
       )}
 
@@ -187,7 +194,7 @@ const Deposit = () => {
             value={amountUSDT}
             onChange={(e) => setAmountUSDT(e.target.value)}
             required
-            disabled={!info.depositsEnabled}
+            disabled={!depositsEnabled}
           />
           {preview && (
             <div className="deposit-preview">
@@ -204,10 +211,10 @@ const Deposit = () => {
             value={txHash}
             onChange={(e) => setTxHash(e.target.value)}
             required
-            disabled={!info.depositsEnabled}
+            disabled={!depositsEnabled}
           />
           <div className="portal-error" />
-          <button type="submit" className="portal-btn block" disabled={submitting || !info.depositsEnabled}>
+          <button type="submit" className="portal-btn block" disabled={submitting || !depositsEnabled}>
             {submitting ? 'Submitting…' : 'Submit Payment'}
           </button>
         </form>
