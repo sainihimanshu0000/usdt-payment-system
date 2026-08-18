@@ -62,11 +62,10 @@ const WalletLedgerSchema = new mongoose.Schema({
   collection: 'wallet_ledger'
 });
 
-WalletLedgerSchema.pre('validate', function setTransactionType(next) {
+WalletLedgerSchema.pre('validate', function setTransactionType() {
   if (!this.transactionType) {
     this.transactionType = this.type;
   }
-  next();
 });
 
 module.exports = mongoose.model('WalletLedger', WalletLedgerSchema);

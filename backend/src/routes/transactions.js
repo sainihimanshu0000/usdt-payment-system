@@ -520,7 +520,8 @@ router.patch('/user/transactions/:id/approve', verifyUser, async (req, res) => {
     });
   } catch (error) {
     console.error('User approve transaction error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    const status = error.status || (error.name === 'CastError' ? 400 : 500);
+    res.status(status).json({ error: error.message || 'Internal server error' });
   }
 });
 

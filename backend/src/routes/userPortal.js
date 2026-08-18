@@ -109,4 +109,25 @@ router.post('/deposit/usdt', verifyUser, async (req, res) => {
   }
 });
 
+const transactionRoutes = require('./transactions');
+router.use((req, res, next) => {
+  const path = req.path || '';
+  if (!path.startsWith('/transactions')) {
+    if (typeof next === 'function') return next();
+    return res.status(404).json({ error: 'Not found' });
+  }
+
+  const previousUrl = req.url;
+  req.url = '/user' + (previousUrl.startsWith('/') ? previousUrl : `/${previousUrl}`);
+  transactionRoutes(req, res, (err) => {
+    req.url = previousUrl;
+    if (err) {
+      if (typeof next === 'function') return next(err);
+      return res.status(500).json({ error: err.message || 'Internal server error' });
+    }
+    if (!res.headersSent && typeof next === 'function') return next();
+    if (!res.headersSent) return res.status(404).json({ error: 'Not found' });
+  });
+});
+
 module.exports = router;
