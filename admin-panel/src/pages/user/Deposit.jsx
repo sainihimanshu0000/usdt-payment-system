@@ -1,11 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import api from '../../services/api';
 
+const formatInr = (value) =>
+  `₹${Number(value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
 const Deposit = () => {
   const navigate = useNavigate();
-  const [settings, setSettings] = useState(null);
+  const [info, setInfo] = useState(null);
   const [banks, setBanks] = useState([]);
   const [amountUSDT, setAmountUSDT] = useState('');
   const [txHash, setTxHash] = useState('');
@@ -16,11 +19,11 @@ const Deposit = () => {
   useEffect(() => {
     const load = async () => {
       try {
-        const [settingsRes, banksRes] = await Promise.all([
-          api.get('/payments/settings'),
+        const [infoRes, banksRes] = await Promise.all([
+          api.get('/user/deposit/usdt-info'),
           api.get('/bank-accounts')
         ]);
-        setSettings(settingsRes.data);
+        setInfo(infoRes.data);
         setBanks(banksRes.data || []);
       } catch (error) {
         toast.error('Failed to load payment settings');
@@ -31,9 +34,20 @@ const Deposit = () => {
     load();
   }, []);
 
+  const preview = useMemo(() => {
+    const amount = Number(amountUSDT);
+    const rate = Number(info?.currentUsdtRate || 0);
+    const bonusRatio = Number(info?.bonusRatio || 0);
+    if (!amount || amount <= 0 || !rate) return null;
+    const convertedInrAmount = Number((amount * rate).toFixed(2));
+    const bonusAmount = Number((convertedInrAmount * bonusRatio / 100).toFixed(2));
+    const finalCreditAmount = Number((convertedInrAmount + bonusAmount).toFixed(2));
+    return { convertedInrAmount, bonusAmount, finalCreditAmount };
+  }, [amountUSDT, info]);
+
   const copyWallet = async () => {
     try {
-      await navigator.clipboard.writeText(settings.walletAddress);
+      await navigator.clipboard.writeText(info.walletAddress);
       toast.success('Wallet address copied');
     } catch (error) {
       toast.error('Could not copy address');
@@ -53,10 +67,10 @@ const Deposit = () => {
     e.preventDefault();
     setSubmitting(true);
     try {
-      await api.post('/payments', {
-        amountUSDT: Number(amountUSDT),
+      await api.post('/user/deposit/usdt', {
+        amountUsdt: Number(amountUSDT),
         txHash: txHash.trim(),
-        network: settings.network,
+        network: info.network,
         ...(bankAccountId ? { bankAccountId } : {})
       });
       toast.success('Payment submitted. Waiting for admin approval.');
@@ -72,7 +86,7 @@ const Deposit = () => {
     return <div className="portal-empty">Loading deposit details…</div>;
   }
 
-  if (!settings?.active) {
+  if (!info?.walletAddress) {
     return <div className="portal-card">Deposits are currently disabled.</div>;
   }
 
@@ -87,23 +101,34 @@ const Deposit = () => {
         </div>
       </div>
 
+      <div className="portal-rate-banner">
+        Current rate: <strong>1 USDT = {info.currentUsdtRate ? formatInr(info.currentUsdtRate) : 'Not set'}</strong>
+        {Number(info.bonusRatio || 0) > 0 ? ` · Bonus ${info.bonusRatio}%` : ''}
+      </div>
+
+      {!info.depositsEnabled && (
+        <div className="portal-card" style={{ marginBottom: 16 }}>
+          USDT deposits are currently inactive. An admin must set an active USDT rate first.
+        </div>
+      )}
+
       <div className="portal-grid-2">
         <div>
           <div className="portal-card">
             <p className="portal-kicker">SEND USDT</p>
             <p style={{ color: 'var(--p-muted)', marginTop: 0 }}>
-              Transfer USDT on {settings.network} to the wallet below, then submit your transaction hash.
+              Transfer USDT on {info.network} to the wallet below, then submit your transaction hash.
             </p>
             <label className="portal-label">Receiving Wallet</label>
-            <input className="portal-input" value={settings.walletAddress || ''} readOnly />
+            <input className="portal-input" value={info.walletAddress || ''} readOnly />
             <button type="button" className="portal-btn ghost sm" style={{ margin: '10px 0 12px' }} onClick={copyWallet}>
               Copy address
             </button>
             <div style={{ color: 'var(--p-muted)', fontSize: 13 }}>
-              Min {settings.minAmount} USDT · Max {settings.maxAmount} USDT
+              Min {info.minDeposit} USDT · Max {info.maxDeposit} USDT
             </div>
-            {settings.qrImage && (
-              <img src={settings.qrImage} alt="Wallet QR" style={{ maxWidth: 180, marginTop: 14, borderRadius: 12 }} />
+            {info.qrImage && (
+              <img src={info.qrImage} alt="Wallet QR" style={{ maxWidth: 180, marginTop: 14, borderRadius: 12 }} />
             )}
           </div>
 
@@ -156,13 +181,22 @@ const Deposit = () => {
           <input
             className="portal-input"
             type="number"
-            min={settings.minAmount}
-            max={settings.maxAmount}
+            min={info.minDeposit}
+            max={info.maxDeposit}
             step="0.01"
             value={amountUSDT}
             onChange={(e) => setAmountUSDT(e.target.value)}
             required
+            disabled={!info.depositsEnabled}
           />
+          {preview && (
+            <div className="deposit-preview">
+              <div>Converted: {formatInr(preview.convertedInrAmount)}</div>
+              {preview.bonusAmount > 0 && <div>Bonus: {formatInr(preview.bonusAmount)}</div>}
+              <div><strong>You will receive: {formatInr(preview.finalCreditAmount)}</strong></div>
+              <div style={{ color: 'var(--p-muted)' }}>at 1 USDT = {formatInr(info.currentUsdtRate)}</div>
+            </div>
+          )}
           <div className="portal-error" />
           <label className="portal-label">Transaction Hash</label>
           <input
@@ -170,9 +204,10 @@ const Deposit = () => {
             value={txHash}
             onChange={(e) => setTxHash(e.target.value)}
             required
+            disabled={!info.depositsEnabled}
           />
           <div className="portal-error" />
-          <button type="submit" className="portal-btn block" disabled={submitting}>
+          <button type="submit" className="portal-btn block" disabled={submitting || !info.depositsEnabled}>
             {submitting ? 'Submitting…' : 'Submit Payment'}
           </button>
         </form>

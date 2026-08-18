@@ -83,6 +83,10 @@ const Dashboard = () => {
               <h6>Approve Payments</h6>
               <small className="text-muted">Review USDT deposit requests</small>
             </Link>
+            <Link to="/usdt-rate" className="quick-card">
+              <h6>USDT Rate</h6>
+              <small className="text-muted">Set USDT to INR conversion and bonus</small>
+            </Link>
             <Link to="/settings" className="quick-card">
               <h6>Payment Settings</h6>
               <small className="text-muted">Set wallet, network, and limits</small>

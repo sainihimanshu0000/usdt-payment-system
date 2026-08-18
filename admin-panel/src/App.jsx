@@ -14,6 +14,7 @@ const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Users = lazy(() => import('./pages/Users'));
 const Payments = lazy(() => import('./pages/Payments'));
 const Settings = lazy(() => import('./pages/Settings'));
+const UsdtRateSettings = lazy(() => import('./pages/UsdtRateSettings'));
 const AdminBankAccounts = lazy(() => import('./pages/AdminBankAccounts'));
 const AdminTransactions = lazy(() => import('./pages/AdminTransactions'));
 const AddTransaction = lazy(() => import('./pages/AddTransaction'));
@@ -60,6 +61,7 @@ function App() {
                   <Route path="transactions" element={<AdminTransactions />} />
                   <Route path="transactions/add" element={<AddTransaction />} />
                   <Route path="payments" element={<Payments />} />
+                  <Route path="usdt-rate" element={<UsdtRateSettings />} />
                   <Route path="settings" element={<Settings />} />
                 </Route>
               </Route>

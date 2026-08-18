@@ -11,6 +11,38 @@ const PaymentRequestSchema = new mongoose.Schema({
     required: true,
     min: 0.01
   },
+  walletAddress: {
+    type: String,
+    trim: true,
+    default: ''
+  },
+  rateInr: {
+    type: Number,
+    default: 0
+  },
+  bonusRatio: {
+    type: Number,
+    default: 0
+  },
+  convertedInrAmount: {
+    type: Number,
+    default: 0
+  },
+  bonusAmount: {
+    type: Number,
+    default: 0
+  },
+  finalCreditAmount: {
+    type: Number,
+    default: 0
+  },
+  confirmedAt: {
+    type: Date
+  },
+  credited: {
+    type: Boolean,
+    default: false
+  },
   txHash: {
     type: String,
     required: true,

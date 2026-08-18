@@ -94,6 +94,8 @@ const Payments = () => {
                 <tr>
                   <th>User</th>
                   <th>Amount</th>
+                  <th>Rate</th>
+                  <th>INR Credit</th>
                   <th>Network</th>
                   <th>Tx Hash</th>
                   <th>Status</th>
@@ -109,6 +111,8 @@ const Payments = () => {
                       <div className="text-muted small">{payment.userId?.email || ''}</div>
                     </td>
                     <td>{payment.amountUSDT} USDT</td>
+                    <td>{payment.rateInr ? `₹${payment.rateInr}` : '—'}</td>
+                    <td>{payment.finalCreditAmount ? `₹${Number(payment.finalCreditAmount).toLocaleString('en-IN')}` : '—'}</td>
                     <td>{payment.network}</td>
                     <td>
                       <button type="button" className="hash-btn" title={payment.txHash} onClick={() => copyHash(payment.txHash)}>
@@ -133,7 +137,7 @@ const Payments = () => {
                 ))}
                 {payments.length === 0 && (
                   <tr>
-                    <td colSpan="7" className="empty">No payments found</td>
+                    <td colSpan="9" className="empty">No payments found</td>
                   </tr>
                 )}
               </tbody>

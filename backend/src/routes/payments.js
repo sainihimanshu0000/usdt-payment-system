@@ -1,10 +1,11 @@
 const express = require('express');
 const PaymentRequest = require('../models/PaymentRequest');
 const PaymentSetting = require('../models/PaymentSetting');
-const BankAccount = require('../models/BankAccount');
 const User = require('../models/User');
 const { verifyAdmin, verifyUser } = require('../middleware/auth');
 const blockchainService = require('../services/blockchain');
+const { submitUsdtDeposit, creditApprovedDeposit } = require('../services/usdtDeposit');
+const { getActiveRate, serializeRate } = require('../services/usdtRate');
 
 const router = express.Router();
 
@@ -23,7 +24,15 @@ router.get('/settings', async (req, res) => {
       });
       await settings.save();
     }
-    res.json(settings);
+    const rate = await getActiveRate();
+    const serializedRate = serializeRate(rate);
+    res.json({
+      ...settings.toObject(),
+      currentUsdtRate: serializedRate.rateInr || 0,
+      bonusRatio: serializedRate.bonusRatio || 0,
+      minAmount: serializedRate.minDeposit != null ? serializedRate.minDeposit : settings.minAmount,
+      maxAmount: serializedRate.maxDeposit != null ? serializedRate.maxDeposit : settings.maxAmount
+    });
   } catch (error) {
     console.error('Get settings error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -65,60 +74,13 @@ router.post('/settings', verifyAdmin, async (req, res) => {
 // Submit Payment (User only)
 router.post('/', verifyUser, async (req, res) => {
   try {
-    const { amountUSDT, txHash, network, bankAccountId } = req.body;
-
-    if (!amountUSDT || !txHash) {
-      return res.status(400).json({ error: 'Amount and Transaction Hash are required' });
-    }
-
-    // Get payment settings
-    const settings = await PaymentSetting.findOne();
-    if (!settings || !settings.active) {
-      return res.status(400).json({ error: 'Payment system is currently inactive' });
-    }
-
-    // Validate amount
-    if (amountUSDT < settings.minAmount) {
-      return res.status(400).json({ 
-        error: `Minimum amount is ${settings.minAmount} USDT` 
-      });
-    }
-    if (amountUSDT > settings.maxAmount) {
-      return res.status(400).json({ 
-        error: `Maximum amount is ${settings.maxAmount} USDT` 
-      });
-    }
-
-    // Check if transaction hash already used
-    const existingPayment = await PaymentRequest.findOne({ txHash });
-    if (existingPayment) {
-      return res.status(400).json({ error: 'Transaction hash already submitted' });
-    }
-
-    let selectedBank = null;
-    if (bankAccountId) {
-      selectedBank = await BankAccount.findOne({
-        _id: bankAccountId,
-        userId: req.user._id,
-        status: 'active',
-        isActive: true
-      });
-      if (!selectedBank) {
-        return res.status(400).json({ error: 'Select an active bank account for UPI payments' });
-      }
-    }
-
-    // Create payment request
-    const payment = new PaymentRequest({
-      userId: req.user._id,
-      amountUSDT,
-      txHash,
-      network: network || settings.network,
-      status: 'pending',
-      bankAccountId: selectedBank?._id
+    const payment = await submitUsdtDeposit({
+      user: req.user,
+      amountUsdt: req.body.amountUSDT ?? req.body.amountUsdt,
+      txHash: req.body.txHash,
+      network: req.body.network,
+      bankAccountId: req.body.bankAccountId
     });
-
-    await payment.save();
 
     res.status(201).json({
       message: 'Payment submitted successfully',
@@ -128,12 +90,20 @@ router.post('/', verifyUser, async (req, res) => {
         txHash: payment.txHash,
         network: payment.network,
         status: payment.status,
+        rateInr: payment.rateInr,
+        bonusRatio: payment.bonusRatio,
+        convertedInrAmount: payment.convertedInrAmount,
+        bonusAmount: payment.bonusAmount,
+        finalCreditAmount: payment.finalCreditAmount,
         createdAt: payment.createdAt
       }
     });
   } catch (error) {
-    console.error('Submit payment error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    const status = error.status || 500;
+    if (status >= 500) {
+      console.error('Submit payment error:', error);
+    }
+    res.status(status).json({ error: error.message || 'Internal server error' });
   }
 });
 
@@ -272,17 +242,10 @@ router.patch('/:id/approve', verifyAdmin, async (req, res) => {
 
     payment.status = 'approved';
     payment.reviewedAt = new Date();
+    payment.confirmedAt = new Date();
     payment.adminNote = req.body.note || (skipVerification ? 'Manually approved by admin' : 'Approved by admin');
-
     await payment.save();
-
-    // Update user balance
-    const user = await User.findById(payment.userId);
-    if (user) {
-      user.balance = (user.balance || 0) + payment.amountUSDT;
-      user.totalDeposited = (user.totalDeposited || 0) + payment.amountUSDT;
-      await user.save();
-    }
+    await creditApprovedDeposit(payment);
 
     res.json({
       message: 'Payment approved successfully',
@@ -290,7 +253,7 @@ router.patch('/:id/approve', verifyAdmin, async (req, res) => {
     });
   } catch (error) {
     console.error('Approve payment error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(error.status || 500).json({ error: error.message || 'Internal server error' });
   }
 });
 

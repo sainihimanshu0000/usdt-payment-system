@@ -51,7 +51,9 @@ const swaggerSpec = {
     { name: 'Payments', description: 'USDT deposits, settings, and approvals' },
     { name: 'Admins', description: 'Admin accounts' },
     { name: 'Bank Accounts', description: 'User bank accounts for UPI and payouts' },
-    { name: 'Transactions', description: 'Admin-created transactions pending user approval' }
+    { name: 'Transactions', description: 'Admin-created transactions pending user approval' },
+    { name: 'USDT Rate', description: 'Admin USDT to INR rate settings and history' },
+    { name: 'User Portal', description: 'User dashboard and USDT deposit conversion' }
   ],
   components: {
     securitySchemes: {
@@ -305,6 +307,11 @@ const swaggerSpec = {
             ]
           },
           amountUSDT: { type: 'number', example: 50 },
+          rateInr: { type: 'number', example: 106 },
+          bonusRatio: { type: 'number', example: 2 },
+          convertedInrAmount: { type: 'number', example: 5300 },
+          bonusAmount: { type: 'number', example: 106 },
+          finalCreditAmount: { type: 'number', example: 5406 },
           txHash: { type: 'string', example: '0xabc123def456' },
           network: { type: 'string', enum: ['TRC20', 'ERC20', 'BEP20'] },
           status: { type: 'string', enum: ['pending', 'verified', 'approved', 'rejected'] },
@@ -366,6 +373,50 @@ const swaggerSpec = {
           email: { type: 'string', format: 'email', example: 'ops@apex.com' },
           password: { type: 'string', example: 'Admin@123' },
           name: { type: 'string', example: 'Ops Admin' }
+        }
+      },
+      UsdtRateSettings: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          rateInr: { type: 'number', example: 106 },
+          bonusRatio: { type: 'number', example: 2 },
+          minDeposit: { type: 'number', nullable: true, example: 10 },
+          maxDeposit: { type: 'number', nullable: true, example: 10000 },
+          status: { type: 'string', enum: ['active', 'inactive'], example: 'active' },
+          updatedBy: { type: 'string', example: 'Super Admin' },
+          updatedAt: { type: 'string', format: 'date-time' }
+        }
+      },
+      UpdateUsdtRateRequest: {
+        type: 'object',
+        required: ['rateInr'],
+        properties: {
+          rateInr: { type: 'number', minimum: 0.0001, example: 106 },
+          bonusRatio: { type: 'number', minimum: 0, example: 2 },
+          minDeposit: { type: 'number', nullable: true, example: 10 },
+          maxDeposit: { type: 'number', nullable: true, example: 10000 },
+          status: { type: 'string', enum: ['active', 'inactive'], example: 'active' }
+        }
+      },
+      UserDashboard: {
+        type: 'object',
+        properties: {
+          inrBalance: { type: 'number', example: 10812 },
+          usdtBalance: { type: 'number', example: 100 },
+          currentUsdtRate: { type: 'number', example: 106 },
+          bonusRatio: { type: 'number', example: 2 },
+          availableQuota: { type: 'number', example: 10812 },
+          bonusAmount: { type: 'number', example: 212 }
+        }
+      },
+      UsdtDepositInfo: {
+        type: 'object',
+        properties: {
+          walletAddress: { type: 'string', example: 'TRC20_ADDRESS' },
+          network: { type: 'string', example: 'TRC20' },
+          currentUsdtRate: { type: 'number', example: 106 },
+          bonusRatio: { type: 'number', example: 2 }
         }
       }
     }
@@ -1143,6 +1194,108 @@ const swaggerSpec = {
         responses: {
           200: { description: 'Rejected' },
           409: errorResponse('Duplicate rejection is not allowed')
+        }
+      }
+    },
+    '/api/admin/usdt-rate': {
+      get: {
+        tags: ['USDT Rate'],
+        operationId: 'getUsdtRate',
+        summary: 'Get current USDT to INR rate',
+        security: [{ bearerAuth: [] }],
+        parameters: authHeader,
+        responses: {
+          200: { description: 'Current rate', content: jsonContent({ $ref: '#/components/schemas/UsdtRateSettings' }) },
+          401: errorResponse('Unauthorized')
+        }
+      },
+      post: {
+        tags: ['USDT Rate'],
+        operationId: 'updateUsdtRate',
+        summary: 'Update USDT to INR rate',
+        description: 'Admin only. Stores rate history for audit. New deposits use this rate; existing deposits keep their snapshot.',
+        security: [{ bearerAuth: [] }],
+        parameters: authHeader,
+        requestBody: jsonBody(
+          { $ref: '#/components/schemas/UpdateUsdtRateRequest' },
+          { rateInr: 106, bonusRatio: 2, minDeposit: 10, maxDeposit: 10000, status: 'active' },
+          true,
+          'USDT rate configuration'
+        ),
+        responses: {
+          200: { description: 'Rate updated' },
+          400: errorResponse('USDT rate must be greater than 0'),
+          401: errorResponse('Unauthorized')
+        }
+      }
+    },
+    '/api/admin/usdt-rate/history': {
+      get: {
+        tags: ['USDT Rate'],
+        operationId: 'getUsdtRateHistory',
+        summary: 'Get USDT rate change history',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { $ref: '#/components/parameters/Authorization' },
+          { $ref: '#/components/parameters/Page' },
+          { $ref: '#/components/parameters/Limit' }
+        ],
+        responses: {
+          200: { description: 'Rate history' },
+          401: errorResponse('Unauthorized')
+        }
+      }
+    },
+    '/api/user/dashboard': {
+      get: {
+        tags: ['User Portal'],
+        operationId: 'getUserDashboard',
+        summary: 'User dashboard balances',
+        description: 'INR balance and USDT deposit balance come from confirmed deposits only. Current rate is the latest active admin rate.',
+        security: [{ bearerAuth: [] }],
+        parameters: authHeader,
+        responses: {
+          200: { description: 'Dashboard data', content: jsonContent({ $ref: '#/components/schemas/UserDashboard' }) },
+          401: errorResponse('Unauthorized')
+        }
+      }
+    },
+    '/api/user/deposit/usdt-info': {
+      get: {
+        tags: ['User Portal'],
+        operationId: 'getUsdtDepositInfo',
+        summary: 'Deposit screen data',
+        security: [{ bearerAuth: [] }],
+        parameters: authHeader,
+        responses: {
+          200: { description: 'Deposit info', content: jsonContent({ $ref: '#/components/schemas/UsdtDepositInfo' }) },
+          401: errorResponse('Unauthorized')
+        }
+      }
+    },
+    '/api/user/deposit/usdt': {
+      post: {
+        tags: ['User Portal'],
+        operationId: 'submitUsdtDeposit',
+        summary: 'Submit a USDT deposit',
+        description: 'Snapshots the current USDT rate. Pending deposits do not credit the wallet until admin approval.',
+        security: [{ bearerAuth: [] }],
+        parameters: authHeader,
+        requestBody: jsonBody(
+          {
+            type: 'object',
+            required: ['amountUsdt', 'txHash'],
+            properties: {
+              amountUsdt: { type: 'number', example: 100 },
+              txHash: { type: 'string', example: 'TRANSACTION_HASH' }
+            }
+          },
+          { amountUsdt: 100, txHash: 'TRANSACTION_HASH' }
+        ),
+        responses: {
+          201: { description: 'Submitted' },
+          400: errorResponse('Transaction hash already submitted'),
+          401: errorResponse('Unauthorized')
         }
       }
     }

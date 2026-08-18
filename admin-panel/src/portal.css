@@ -438,6 +438,10 @@
   margin-bottom: 16px;
 }
 
+.portal-stats-5 {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
 .portal-stat {
   background: var(--p-card);
   border-radius: var(--p-radius);
@@ -452,7 +456,28 @@
 }
 
 .portal-stat strong {
-  font-size: 26px;
+  font-size: 22px;
+  word-break: break-word;
+}
+
+.portal-rate-banner {
+  background: rgba(245, 196, 0, 0.1);
+  border: 1px solid rgba(245, 196, 0, 0.28);
+  color: var(--p-text);
+  border-radius: var(--p-radius);
+  padding: 12px 16px;
+  margin-bottom: 16px;
+}
+
+.deposit-preview {
+  background: var(--p-bg-2);
+  border: 1px solid var(--p-line);
+  border-radius: 12px;
+  padding: 12px;
+  margin: 8px 0 12px;
+  font-size: 14px;
+  display: grid;
+  gap: 4px;
 }
 
 .portal-actions {
@@ -531,11 +556,18 @@
   vertical-align: middle;
 }
 
+@media (max-width: 1100px) {
+  .portal-stats-5 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 900px) {
   .portal-grid-2,
   .portal-form-grid,
   .bank-list,
   .portal-stats,
+  .portal-stats-5,
   .portal-grid-3 {
     grid-template-columns: 1fr;
   }

@@ -4,22 +4,39 @@ import { toast } from 'react-toastify';
 import api from '../../services/api';
 import { useUserAuth } from '../../context/UserAuthContext';
 
+const formatInr = (value) =>
+  `₹${Number(value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
 const UserDashboard = () => {
   const { user, refreshUser } = useUserAuth();
   const [payments, setPayments] = useState([]);
-  const [banks, setBanks] = useState([]);
+  const [dashboard, setDashboard] = useState({
+    inrBalance: 0,
+    usdtBalance: 0,
+    currentUsdtRate: 0,
+    bonusRatio: 0,
+    availableQuota: 0,
+    bonusAmount: 0
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
       try {
         await refreshUser();
-        const [payRes, bankRes] = await Promise.all([
-          api.get('/payments/my'),
-          api.get('/bank-accounts')
+        const [dashRes, payRes] = await Promise.all([
+          api.get('/user/dashboard'),
+          api.get('/payments/my')
         ]);
+        setDashboard(dashRes.data || {
+          inrBalance: 0,
+          usdtBalance: 0,
+          currentUsdtRate: 0,
+          bonusRatio: 0,
+          availableQuota: 0,
+          bonusAmount: 0
+        });
         setPayments(payRes.data || []);
-        setBanks(bankRes.data || []);
       } catch (error) {
         toast.error('Failed to load dashboard');
       } finally {
@@ -33,7 +50,13 @@ const UserDashboard = () => {
     return <div className="portal-empty">Loading dashboard…</div>;
   }
 
-  const activeBanks = banks.filter((bank) => bank.status === 'active').length;
+  const stats = [
+    { label: 'INR Balance', value: formatInr(dashboard.inrBalance) },
+    { label: 'USDT Balance', value: `${Number(dashboard.usdtBalance || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })} USDT` },
+    { label: 'USDT Rate', value: dashboard.currentUsdtRate ? `1 USDT = ${formatInr(dashboard.currentUsdtRate)}` : 'Not set' },
+    { label: 'Bonus Ratio', value: `${Number(dashboard.bonusRatio || 0)}%` },
+    { label: 'Available Quota', value: formatInr(dashboard.availableQuota) }
+  ];
 
   return (
     <div>
@@ -49,20 +72,20 @@ const UserDashboard = () => {
         </div>
       </div>
 
-      <div className="portal-stats">
-        <div className="portal-stat">
-          <small>Available Balance</small>
-          <strong>{Number(user?.balance || 0).toFixed(2)} USDT</strong>
-        </div>
-        <div className="portal-stat">
-          <small>Total Deposited</small>
-          <strong>{Number(user?.totalDeposited || 0).toFixed(2)} USDT</strong>
-        </div>
-        <div className="portal-stat">
-          <small>Active Bank Accounts</small>
-          <strong>{activeBanks}</strong>
-        </div>
+      <div className="portal-stats portal-stats-5">
+        {stats.map((stat) => (
+          <div className="portal-stat" key={stat.label}>
+            <small>{stat.label}</small>
+            <strong>{stat.value}</strong>
+          </div>
+        ))}
       </div>
+
+      {Number(dashboard.bonusAmount || 0) > 0 && (
+        <div className="portal-rate-banner">
+          Confirmed bonus credited: {formatInr(dashboard.bonusAmount)}
+        </div>
+      )}
 
       <div className="portal-card">
         <p className="portal-kicker">RECENT PAYMENTS</p>
@@ -74,6 +97,8 @@ const UserDashboard = () => {
               <thead>
                 <tr>
                   <th>Amount</th>
+                  <th>Rate</th>
+                  <th>INR Credit</th>
                   <th>Network</th>
                   <th>Tx Hash</th>
                   <th>Status</th>
@@ -84,6 +109,8 @@ const UserDashboard = () => {
                 {payments.map((payment) => (
                   <tr key={payment._id}>
                     <td>{payment.amountUSDT} USDT</td>
+                    <td>{payment.rateInr ? `₹${payment.rateInr}` : '—'}</td>
+                    <td>{payment.finalCreditAmount ? formatInr(payment.finalCreditAmount) : '—'}</td>
                     <td>{payment.network}</td>
                     <td style={{ maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis' }}>{payment.txHash}</td>
                     <td>

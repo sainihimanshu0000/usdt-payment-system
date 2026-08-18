@@ -10,13 +10,22 @@ const WalletLedgerSchema = new mongoose.Schema({
   transactionId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Transaction',
-    required: true,
     index: true
   },
   type: {
     type: String,
     required: true,
-    enum: ['admin_credit', 'deposit', 'debit', 'adjustment']
+    enum: ['admin_credit', 'deposit', 'debit', 'adjustment', 'usdt_deposit']
+  },
+  transactionType: {
+    type: String,
+    default: ''
+  },
+  currency: {
+    type: String,
+    enum: ['INR', 'USDT'],
+    default: 'USDT',
+    uppercase: true
   },
   direction: {
     type: String,
@@ -36,6 +45,14 @@ const WalletLedgerSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  referenceType: {
+    type: String,
+    default: ''
+  },
+  referenceId: {
+    type: mongoose.Schema.Types.ObjectId,
+    index: true
+  },
   remark: {
     type: String,
     default: ''
@@ -43,6 +60,13 @@ const WalletLedgerSchema = new mongoose.Schema({
 }, {
   timestamps: { createdAt: true, updatedAt: false },
   collection: 'wallet_ledger'
+});
+
+WalletLedgerSchema.pre('validate', function setTransactionType(next) {
+  if (!this.transactionType) {
+    this.transactionType = this.type;
+  }
+  next();
 });
 
 module.exports = mongoose.model('WalletLedger', WalletLedgerSchema);
