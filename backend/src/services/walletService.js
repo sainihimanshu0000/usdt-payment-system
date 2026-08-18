@@ -70,6 +70,56 @@ const creditWallet = async ({
   return { wallet, balanceBefore, balanceAfter };
 };
 
+const debitWallet = async ({
+  userId,
+  currency,
+  amount,
+  type,
+  transactionId,
+  referenceType,
+  referenceId,
+  remark
+}) => {
+  const amt = roundAmount(amount);
+  if (amt <= 0) {
+    const error = new Error('Debit amount must be greater than 0');
+    error.status = 400;
+    throw error;
+  }
+
+  const wallet = await getOrCreateWallet(userId, currency);
+  const balanceBefore = roundAmount(wallet.availableBalance);
+  if (balanceBefore < amt) {
+    const error = new Error(
+      `Insufficient ${currency} deposit balance. Available ${balanceBefore}, required ${amt}`
+    );
+    error.status = 400;
+    throw error;
+  }
+
+  const balanceAfter = roundAmount(balanceBefore - amt);
+  wallet.availableBalance = balanceAfter;
+  wallet.totalBalance = roundAmount(Number(wallet.lockedBalance || 0) + balanceAfter);
+  await wallet.save();
+
+  await WalletLedger.create({
+    userId,
+    transactionId: transactionId || undefined,
+    type: type || 'debit',
+    transactionType: type || 'debit',
+    currency: String(currency).toUpperCase(),
+    direction: 'debit',
+    amount: amt,
+    balanceBefore,
+    balanceAfter,
+    referenceType: referenceType || '',
+    referenceId: referenceId || undefined,
+    remark: remark || ''
+  });
+
+  return { wallet, balanceBefore, balanceAfter };
+};
+
 const getWalletBalances = async (userId) => {
   const [inrWallet, usdtWallet] = await Promise.all([
     getOrCreateWallet(userId, 'INR'),
@@ -88,5 +138,6 @@ module.exports = {
   roundAmount,
   getOrCreateWallet,
   creditWallet,
+  debitWallet,
   getWalletBalances
 };

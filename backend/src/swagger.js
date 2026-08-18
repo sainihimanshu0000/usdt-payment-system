@@ -1167,7 +1167,8 @@ const swaggerSpec = {
       patch: {
         tags: ['Transactions'],
         operationId: 'userApproveTransaction',
-        summary: 'User: approve transaction and credit wallet',
+        summary: 'User: approve transaction and deduct deposit balance',
+        description: 'Converts the USDT amount to INR using the current rate and deducts it from the user deposit balance. Pending deposits are not affected.',
         security: [{ bearerAuth: [] }],
         parameters: idAndAuth,
         responses: {

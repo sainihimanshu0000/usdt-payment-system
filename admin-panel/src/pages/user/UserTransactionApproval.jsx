@@ -80,7 +80,7 @@ const UserTransactionApproval = () => {
       <div className="portal-page-head">
         <div>
           <h1>Transaction Approval</h1>
-          <p>Review amounts and UTR numbers sent by admin before your wallet is credited</p>
+          <p>Review amounts sent by admin. Approving deducts the INR value from your deposit balance.</p>
         </div>
       </div>
 
@@ -97,6 +97,12 @@ const UserTransactionApproval = () => {
                 <div>
                   <h3>{Number(txn.amount).toFixed(2)} USDT</h3>
                   <p>UTR {txn.utrNumber}</p>
+                  {txn.inrAmount ? (
+                    <p style={{ margin: '6px 0 0', color: 'var(--p-muted)' }}>
+                      Deposit deduction: ₹{Number(txn.inrAmount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {txn.currentUsdtRate ? ` · 1 USDT = ₹${txn.currentUsdtRate}` : ''}
+                    </p>
+                  ) : null}
                 </div>
                 <span className="portal-badge pending">{txn.statusLabel}</span>
               </div>
@@ -149,7 +155,9 @@ const UserTransactionApproval = () => {
           <div className="portal-card">
             <h3 style={{ marginTop: 0 }}>Approve this transaction?</h3>
             <p style={{ color: 'var(--p-muted)' }}>
-              Are you sure you want to approve this transaction? {Number(confirmTxn.amount).toFixed(2)} USDT will be credited to your wallet.
+              Are you sure you want to approve this transaction? {Number(confirmTxn.amount).toFixed(2)} USDT
+              {confirmTxn.inrAmount ? ` (₹${Number(confirmTxn.inrAmount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})` : ''}
+              {' '}will be deducted from your deposit balance.
             </p>
             <div className="bank-actions">
               <button type="button" className="portal-btn ghost" onClick={() => setConfirmTxn(null)}>Cancel</button>
@@ -165,7 +173,7 @@ const UserTransactionApproval = () => {
         <div className="portal-confirm">
           <div className="portal-card">
             <h3 style={{ marginTop: 0 }}>Reject transaction</h3>
-            <p style={{ color: 'var(--p-muted)' }}>Enter a reason. Your wallet will not be credited.</p>
+            <p style={{ color: 'var(--p-muted)' }}>Enter a reason. Your deposit balance will not be deducted.</p>
             <textarea
               className="portal-textarea"
               value={reason}

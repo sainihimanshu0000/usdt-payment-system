@@ -57,7 +57,7 @@ const AdminTransactions = () => {
   }, [status, searchParams]);
 
   const approveOnBehalf = async (id) => {
-    if (!window.confirm('Approve this transaction on behalf of the user? Wallet will be credited.')) return;
+    if (!window.confirm('Approve this transaction on behalf of the user? The INR value will be deducted from their deposit balance.')) return;
     setBusyId(id);
     try {
       await api.patch(`/admin/transactions/${id}/approve`);

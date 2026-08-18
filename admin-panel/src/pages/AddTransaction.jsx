@@ -70,7 +70,7 @@ const AddTransaction = () => {
       <div className="page-head">
         <div>
           <h1>Add Transaction</h1>
-          <p>Send an amount and UTR to a user for approval. Wallet is not credited yet.</p>
+          <p>Send an amount and UTR to a user for approval. On approval, the INR value is deducted from their deposit balance.</p>
         </div>
         <Link to="/transactions" className="btn-soft">Back to list</Link>
       </div>
@@ -94,7 +94,7 @@ const AddTransaction = () => {
             </select>
           </div>
           <div className="mb-3">
-            <label className="form-label">Amount</label>
+            <label className="form-label">Amount (USDT)</label>
             <input
               className="form-control"
               type="number"

@@ -9,6 +9,8 @@ const User = require('../models/User');
 const BankAccount = require('../models/BankAccount');
 const { verifyAdmin, verifyUser } = require('../middleware/auth');
 const { getRequestMeta, makeTxnId } = require('../utils/requestMeta');
+const { debitWallet, getOrCreateWallet, roundAmount } = require('../services/walletService');
+const { getCurrentRate } = require('../services/usdtRate');
 
 const router = express.Router();
 
@@ -65,6 +67,8 @@ const serialize = (doc) => {
     userEmail: user?.email || '',
     mobileNumber: user?.phone || txn.mobileNumber || '',
     amount: txn.amount,
+    inrAmount: txn.inrAmount,
+    currentUsdtRate: txn.currentUsdtRate,
     utrNumber: txn.utrNumber,
     paymentMode: txn.paymentMode,
     status: txn.status,
@@ -101,26 +105,87 @@ const attachMobile = async (rows) => {
   }));
 };
 
-const creditWallet = async ({ user, txn, remark }) => {
-  const balanceBefore = Number(user.balance || 0);
-  const balanceAfter = Number((balanceBefore + Number(txn.amount)).toFixed(2));
+const payoutAmounts = async (usdtAmount) => {
+  const rate = await getCurrentRate();
+  const rateInr = Number(rate?.rateInr || 0);
+  const amount = roundAmount(usdtAmount);
+  return {
+    usdtAmount: amount,
+    inrAmount: rateInr > 0 ? roundAmount(amount * rateInr) : amount,
+    rateInr
+  };
+};
 
-  user.balance = balanceAfter;
-  user.totalDeposited = Number((Number(user.totalDeposited || 0) + Number(txn.amount)).toFixed(2));
-  await user.save();
+const withPayoutPreview = async (rows) => {
+  const { rateInr } = await payoutAmounts(1);
+  return rows.map((row) => ({
+    ...row,
+    currentUsdtRate: rateInr,
+    inrAmount: rateInr > 0 ? roundAmount(Number(row.amount) * rateInr) : roundAmount(row.amount)
+  }));
+};
 
-  await WalletLedger.create({
-    userId: user._id,
+const debitDepositBalance = async ({ user, txn, remark }) => {
+  const already = await WalletLedger.findOne({
     transactionId: txn._id,
-    type: 'admin_credit',
-    direction: 'credit',
-    amount: txn.amount,
-    balanceBefore,
-    balanceAfter,
-    remark
+    direction: 'debit',
+    currency: 'INR'
+  });
+  if (already) {
+    return {
+      balanceBefore: already.balanceBefore,
+      balanceAfter: already.balanceAfter,
+      inrAmount: already.amount
+    };
+  }
+
+  const { usdtAmount, inrAmount, rateInr } = await payoutAmounts(txn.amount);
+  const inrWallet = await getOrCreateWallet(user._id, 'INR');
+  const available = roundAmount(inrWallet.availableBalance);
+  if (available < inrAmount) {
+    const error = new Error(
+      `Insufficient deposit balance. Available ₹${available.toLocaleString('en-IN')}, required ₹${inrAmount.toLocaleString('en-IN')}`
+    );
+    error.status = 400;
+    throw error;
+  }
+
+  const inrResult = await debitWallet({
+    userId: user._id,
+    currency: 'INR',
+    amount: inrAmount,
+    type: 'debit',
+    transactionId: txn._id,
+    referenceType: 'payout',
+    referenceId: txn._id,
+    remark: remark || `Payout UTR ${txn.utrNumber}`
   });
 
-  return { balanceBefore, balanceAfter };
+  const usdtWallet = await getOrCreateWallet(user._id, 'USDT');
+  const usdtDebit = Math.min(usdtAmount, roundAmount(usdtWallet.availableBalance));
+  if (usdtDebit > 0) {
+    await debitWallet({
+      userId: user._id,
+      currency: 'USDT',
+      amount: usdtDebit,
+      type: 'debit',
+      transactionId: txn._id,
+      referenceType: 'payout',
+      referenceId: txn._id,
+      remark: remark || `Payout UTR ${txn.utrNumber}`
+    });
+  }
+
+  user.balance = roundAmount(Math.max(0, Number(user.balance || 0) - usdtDebit));
+  await user.save();
+
+  return {
+    balanceBefore: inrResult.balanceBefore,
+    balanceAfter: inrResult.balanceAfter,
+    inrAmount,
+    usdtAmount: usdtDebit,
+    rateInr
+  };
 };
 
 const populateTxn = (query) =>
@@ -188,7 +253,7 @@ router.post('/admin/transactions', verifyAdmin, async (req, res) => {
       recipientType: 'user',
       recipientId: user._id,
       title: 'New transaction approval request received.',
-      message: `A ${numericAmount} USDT transaction (UTR ${utr}) is waiting for your approval.`,
+      message: `A ${numericAmount} USDT payment (UTR ${utr}) is waiting for your approval. Approving will deduct it from your deposit balance.`,
       referenceId: txn._id
     });
 
@@ -232,7 +297,7 @@ router.get('/admin/transactions', verifyAdmin, async (req, res) => {
       Transaction.countDocuments(filter)
     ]);
 
-    const accounts = await attachMobile(rows.map(serialize));
+    const accounts = await withPayoutPreview(await attachMobile(rows.map(serialize)));
     res.json({
       transactions: accounts,
       pagination: { page, limit, total, pages: Math.ceil(total / limit) }
@@ -283,19 +348,29 @@ router.patch('/admin/transactions/:id/approve', verifyAdmin, async (req, res) =>
     const user = await User.findById(claimed.userId);
     if (!user) {
       claimed.status = 'failed';
-      claimed.failureReason = 'User not found while crediting';
+      claimed.failureReason = 'User not found while debiting deposit balance';
       await claimed.save();
       return res.status(404).json({ error: 'User not found' });
     }
 
-    const { balanceBefore, balanceAfter } = await creditWallet({
-      user,
-      txn: claimed,
-      remark: claimed.adminRemark || 'Admin credit after super-admin approval'
-    });
+    let debitResult;
+    try {
+      debitResult = await debitDepositBalance({
+        user,
+        txn: claimed,
+        remark: claimed.adminRemark || 'Payout after super-admin approval'
+      });
+    } catch (debitError) {
+      claimed.status = 'pending_user_approval';
+      claimed.userActionAt = undefined;
+      claimed.userActionIp = undefined;
+      claimed.userActionDevice = undefined;
+      await claimed.save();
+      return res.status(debitError.status || 500).json({ error: debitError.message || 'Failed to deduct deposit balance' });
+    }
 
-    claimed.balanceBefore = balanceBefore;
-    claimed.balanceAfter = balanceAfter;
+    claimed.balanceBefore = debitResult.balanceBefore;
+    claimed.balanceAfter = debitResult.balanceAfter;
     claimed.status = 'success';
     await claimed.save();
 
@@ -314,7 +389,7 @@ router.patch('/admin/transactions/:id/approve', verifyAdmin, async (req, res) =>
       recipientType: 'user',
       recipientId: user._id,
       title: 'Transaction approved',
-      message: `Your ${claimed.amount} USDT transaction was approved and credited.`,
+      message: `Your ${claimed.amount} USDT payment was approved and deducted from your deposit balance.`,
       referenceId: claimed._id
     });
 
@@ -336,7 +411,7 @@ router.get('/user/transactions/pending-approval', verifyUser, async (req, res) =
     const rows = await populateTxn(
       Transaction.find({ userId: req.user._id, status: 'pending_user_approval' })
     ).sort({ createdAt: -1 });
-    const list = await attachMobile(rows.map(serialize));
+    const list = await withPayoutPreview(await attachMobile(rows.map(serialize)));
     res.json(list);
   } catch (error) {
     console.error('User pending transactions error:', error);
@@ -350,7 +425,7 @@ router.get('/user/transactions', verifyUser, async (req, res) => {
     const status = String(req.query.status || '').toLowerCase();
     if (Transaction.STATUSES.includes(status)) filter.status = status;
     const rows = await populateTxn(Transaction.find(filter)).sort({ createdAt: -1 });
-    res.json(await attachMobile(rows.map(serialize)));
+    res.json(await withPayoutPreview(await attachMobile(rows.map(serialize))));
   } catch (error) {
     console.error('User list transactions error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -384,14 +459,26 @@ router.patch('/user/transactions/:id/approve', verifyUser, async (req, res) => {
     }
 
     const user = await User.findById(req.user._id);
-    const { balanceBefore, balanceAfter } = await creditWallet({
-      user,
-      txn: claimed,
-      remark: claimed.adminRemark || `UTR ${claimed.utrNumber}`
-    });
+    let debitResult;
+    try {
+      debitResult = await debitDepositBalance({
+        user,
+        txn: claimed,
+        remark: claimed.adminRemark || `UTR ${claimed.utrNumber}`
+      });
+    } catch (debitError) {
+      claimed.status = 'pending_user_approval';
+      claimed.userActionAt = undefined;
+      claimed.userActionIp = undefined;
+      claimed.userActionDevice = undefined;
+      await claimed.save();
+      return res.status(debitError.status || 500).json({
+        error: debitError.message || 'Failed to deduct deposit balance'
+      });
+    }
 
-    claimed.balanceBefore = balanceBefore;
-    claimed.balanceAfter = balanceAfter;
+    claimed.balanceBefore = debitResult.balanceBefore;
+    claimed.balanceAfter = debitResult.balanceAfter;
     claimed.status = 'success';
     await claimed.save();
 
@@ -402,7 +489,7 @@ router.patch('/user/transactions/:id/approve', verifyUser, async (req, res) => {
       action: 'approve',
       fromStatus: 'pending_user_approval',
       toStatus: 'success',
-      metadata: { amount: claimed.amount, utrNumber: claimed.utrNumber, ip, device },
+      metadata: { amount: claimed.amount, inrAmount: debitResult.inrAmount, utrNumber: claimed.utrNumber, ip, device },
       ip
     });
 
@@ -421,14 +508,16 @@ router.patch('/user/transactions/:id/approve', verifyUser, async (req, res) => {
       recipientType: 'admin',
       recipientId: claimed.createdByAdminId,
       title: 'User approved the transaction.',
-      message: `${user.name} approved ${claimed.amount} USDT (UTR ${claimed.utrNumber}).`,
+      message: `${user.name} approved ${claimed.amount} USDT (UTR ${claimed.utrNumber}). Deposit balance deducted.`,
       referenceId: claimed._id
     });
 
     res.json({
       success: true,
       message: 'Transaction approved successfully',
-      balance: balanceAfter
+      balance: debitResult.balanceAfter,
+      inrBalance: debitResult.balanceAfter,
+      inrAmount: debitResult.inrAmount
     });
   } catch (error) {
     console.error('User approve transaction error:', error);
